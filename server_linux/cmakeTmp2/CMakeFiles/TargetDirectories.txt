@@ -1,0 +1,3 @@
+/home/user/networkslab/tcp_template/server_linux/cmakeTmp2/CMakeFiles/edit_cache.dir
+/home/user/networkslab/tcp_template/server_linux/cmakeTmp2/CMakeFiles/rebuild_cache.dir
+/home/user/networkslab/tcp_template/server_linux/cmakeTmp2/CMakeFiles/server_linux.dir
