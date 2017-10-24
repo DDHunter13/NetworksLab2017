@@ -7,22 +7,7 @@
 
 #include <string.h>
 
-#include "pthread.h"
-
-void* readAndWrite (void* temp){
-    int sock = *((int*)temp);
-    char buf[256];
-    char* p = buf;
-
-    while(1){
-        bzero(buf, 0);
-        int n = readn(sock, p, 255);
-        if (n > 0){
-            printf("%s \n", buf);
-            write(sock,"I'v got your message", 20);
-        }
-    }
-}
+#include <pthread.h>
 
 int readn(int sockfd, char *buf, int n){
     int k;
@@ -37,6 +22,24 @@ int readn(int sockfd, char *buf, int n){
     }
     return off;
 }
+
+void* readAndWrite (void* temp) {
+    int sock = *((int *) temp);
+    char buf[256];
+    char *p = buf;
+
+    //while(1){
+    bzero(buf, 256);
+    int n = readn(sock, p, 255);
+    if (n > 0) {
+        printf("%s \n", buf);
+        write(sock, "I'v got your message", 20);
+    }
+    shutdown(sock, 2);
+    close(sock);
+    //}
+}
+
 
 int main(int argc, char *argv[]) {
     int sockfd, newsockfd;
@@ -79,8 +82,8 @@ int main(int argc, char *argv[]) {
         /* Accept actual connection from the client */
         newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
 
-        shutdown(sockfd, 2);
-        close(sockfd);
+        //shutdown(sockfd, 2);
+        //close(sockfd);
     
         if (newsockfd < 0) {
             perror("ERROR on accept");
@@ -113,8 +116,7 @@ int main(int argc, char *argv[]) {
         pthread_detach(tid);
     }
 
-    shutdown(newsockfd, 2);
-    close(newsockfd);
+
 
     return 0;
 }
