@@ -7,7 +7,7 @@
 #include <string.h>
 #include <pthread.h>
 
-int chd(int sock, char *  path); //смена директории
+int direxist(int sock, char *  path); //смена директории
 int ls(int sock, char * path);  //просмотр содержимого
 int pull(int sock, char * file); //взять файл с сервера
 int push(int sock, char * path); //положить файл на сервер
@@ -27,7 +27,7 @@ int parse (int sock, char * message) {
     // сохраним аргументы из оставшейся части строки
     for (; i < strlen(message); i++) arg[j++] = message[i];
 
-    if (strncmp(command, "cd", 2)) chd(sock, arg);
+    if (strncmp(command, "cd", 2)) direxist(sock, arg);
     else
         if (strncmp(command, "ls", 2)) ls(sock, arg);
         else
@@ -40,7 +40,7 @@ int parse (int sock, char * message) {
     return 1;
 }
 
-int chd(int sock, char *  path) {
+int direxist(int sock, char *  path) {
     DIR* dir;
     if ((dir = opendir(path)) == NULL) {
         write (sock, "n", 1); // папки не существует, клиент не изменит адрес
@@ -55,12 +55,19 @@ int ls(int sock, char * path) {
     char ans [256];
     bzero (ans, 256);
     if ((dir = opendir(path)) == NULL) {
-        write (sock, "invalid path", 11); // если папки не существует
+        write (sock, "n", 1); // если папки не существует
     } else
+        write (sock, "y", 1);
         // в цикле перебираем все содержимое, отправляя новое сообщения для каждого файла
         while ((de = readdir(dir)) != NULL) {
             bzero (ans, 256);
             strcat(ans, de->d_name);
+            if (strncmp(ans, "_ls_end", 256)) {
+                int i;
+                for (i = strlen(ans)-1; i >= 0; i--)
+                    ans[i + 1] = ans[i];
+                ans[0] = '/';
+            }
             write(sock, ans, 256);
         }
     write (sock, "_ls_end", 7); // по данной строке клиент закончит прием сообщений
@@ -87,6 +94,12 @@ int pull(int sock, char * file) {
     fseek(fp, 0, SEEK_SET);
     while (!feof(fp)) {
         size = (int)fread((void *) sendbuff, sizeof(char), 256, fp);
+        if (strncmp(sendbuff, "_end_of_file", 256)) {
+            int i;
+            for (i = strlen(sendbuff)-1; i >= 0; i--)
+                sendbuff[i + 1] = sendbuff[i];
+            sendbuff[0] = '/';
+        }
         write(sock, sendbuff, size);
     }
     write(sock, "_end_of_file", 12);
@@ -108,6 +121,11 @@ int push(int sock, char * path) {
     bzero(buffer, 256);
     readn(sock, buffer, 256);
     while (!(strncmp(buffer, "_end_of_file", 256))) {
+        if (strncmp(buffer, "/_end_of_file", 256)) {
+            int i;
+            for (i = 0; i < strlen(buffer) - 1; i++)
+                buffer[i] = buffer[i + 1];
+        }
         fwrite((void *) buffer, sizeof(char), 256, fp);
         readn(sock, buffer, 256);
     }
@@ -136,7 +154,14 @@ void* readAndWrite (void* temp) {
 
     while(1) {
         bzero(buf, 256);
-        int n = readn(sock, p, 255);
+        int n = readn(sock, p, 3);
+        if (n < 0) {
+            perror("ERROR on reading");
+            exit(1);
+        }
+        int length = atoi(p);
+        bzero(buf, 256);
+        n = readn(sock, p, length);
         if (n < 0) {
             perror("ERROR on reading");
             exit(1);
