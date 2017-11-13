@@ -20,7 +20,7 @@ int addrPaste (char * message) {
     strcat(str, addr);
     strcat(str, message);
     message = str;
-    return 0;
+    return 1;
 }
 
 int ls (int sockfd, char * arg) {
@@ -33,7 +33,7 @@ int ls (int sockfd, char * arg) {
     strcat(post, arg);
     send(sockfd, "256", 3, 0);
     send(sockfd, post, 256, 0);
-    readn(sockfd, mes, 256);
+    readn(sockfd, mes, 1);
     if (strncmp(mes, "y", 1)) {
         memset(mes, 0, 256);
         readn(sockfd, mes, 256);
@@ -43,16 +43,77 @@ int ls (int sockfd, char * arg) {
             memset(mes, 0, 256);
             readn(sockfd, mes, 256);
         }
-        return 0;
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 int pull (int sockfd, char * arg) {
-
+    FILE * fp;
+    if((fp = fopen(arg, "wb")) == NULL) {
+        printf("Can't create file \n");
+        return 0;
+    }
+    addrPaste(arg);
+    char * post[256];
+    char * mes[256];
+    memset(post, 0, 256);
+    memset(mes, 0, 256);
+    strcat(post, "pull ");
+    strcat(post, arg);
+    send(sockfd, "256", 3, 0);
+    send(sockfd, post, 256, 0);
+    readn(sockfd, mes, 1);
+    if (strncmp(mes, "y", 1)) {
+        memset(mes, 0, 256);
+        readn(sockfd, mes, 256);
+        while (!(strncmp(mes, "_end_of_file", 256))) {
+            if (strncmp(mes, "/_end_of_file", 256)) {
+                int i;
+                for (i = 0; i < strlen(mes) - 1; i++)
+                    mes[i] = mes[i + 1];
+            }
+            fwrite((void *) mes, sizeof(char), 256, fp);
+            readn(sockfd, mes, 256);
+        }
+        return 1;
+    }
+    return 0;
 }
-int push (int sockfd, char * arg) {
 
+int push (int sockfd, char * arg) {
+    FILE * fp;
+    if((fp = fopen(arg, "rb")) == NULL) {
+        printf("Can't read file \n");
+        return 0;
+    }
+    addrPaste(arg);
+    char * post[256];
+    char * mes[256];
+    memset(post, 0, 256);
+    memset(mes, 0, 256);
+    strcat(post, "push ");
+    strcat(post, arg);
+    send(sockfd, "256", 3, 0);
+    send(sockfd, post, 256, 0);
+    readn(sockfd, mes, 1);
+    int size = 0;
+    if (strncmp(mes, "y", 1)) {
+        memset(mes, 0, 256);
+        fseek(fp, 0, SEEK_SET);
+        while (!feof(fp)) {
+            size = (int)fread((void *) mes, sizeof(char), 256, fp);
+            if (strncmp(mes, "_end_of_file", 256)) {
+                int i;
+                for (i = strlen(mes)-1; i >= 0; i--)
+                    mes[i + 1] = mes[i];
+                mes[0] = '/';
+            }
+            send(sockfd, mes, size, 0);
+        }
+        return 1;
+    }
+    return 0;
 }
 
 int addrChange(int sockfd, char * arg){
@@ -215,3 +276,4 @@ int main(int argc, char *argv[]) {
     WSACleanup();
 
     return 0;
+}
