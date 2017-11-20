@@ -27,15 +27,15 @@ int parse (int sock, char * message) {
     // сохраним аргументы из оставшейся части строки
     for (; i < strlen(message); i++) arg[j++] = message[i];
 
-    if (strncmp(command, "cd", 2)) direxist(sock, arg);
+    if (!(strncmp(command, "cd", 2))) direxist(sock, arg);
     else
-        if (strncmp(command, "ls", 2)) ls(sock, arg);
+        if (!(strncmp(command, "ls", 2))) ls(sock, arg);
         else
-            if (strncmp(command, "pull", 4)) pull(sock, arg);
+            if (!(strncmp(command, "pull", 4))) pull(sock, arg);
             else
-                if (strncmp(command, "push", 4)) push (sock,arg);
+                if (!(strncmp(command, "push", 4))) push (sock,arg);
                 else
-                    if (strncmp(command, "exit", 4)) return 2;
+                    if (!(strncmp(command, "exit", 4))) return 2;
                     else return 0;
     return 1;
 }
@@ -46,6 +46,7 @@ int direxist(int sock, char *  path) {
         write (sock, "n", 1); // папки не существует, клиент не изменит адрес
     } else
         write (sock, "y", 1); // клиент получит одобрение на изменение адреса
+    closedir(dir);
     return 1;
 }
 
@@ -62,7 +63,7 @@ int ls(int sock, char * path) {
         while ((de = readdir(dir)) != NULL) {
             bzero (ans, 256);
             strcat(ans, de->d_name);
-            if (strncmp(ans, "_ls_end", 256)) {
+            if (!(strncmp(ans, "_ls_end", 256))) {
                 int i;
                 for (i = strlen(ans)-1; i >= 0; i--)
                     ans[i + 1] = ans[i];
@@ -70,7 +71,7 @@ int ls(int sock, char * path) {
             }
             write(sock, ans, 256);
         }
-    write (sock, "_ls_end", 7); // по данной строке клиент закончит прием сообщений
+    write (sock, "_ls_end", 256); // по данной строке клиент закончит прием сообщений
     closedir(dir);
     return 1;
 }
@@ -94,15 +95,16 @@ int pull(int sock, char * file) {
     fseek(fp, 0, SEEK_SET);
     while (!feof(fp)) {
         size = (int)fread((void *) sendbuff, sizeof(char), 256, fp);
-        if (strncmp(sendbuff, "_end_of_file", 256)) {
+        if (!(strncmp(sendbuff, "_end_of_file", 256))) {
             int i;
             for (i = strlen(sendbuff)-1; i >= 0; i--)
                 sendbuff[i + 1] = sendbuff[i];
             sendbuff[0] = '/';
         }
-        write(sock, sendbuff, size);
+        write(sock, sendbuff, 256);
     }
-    write(sock, "_end_of_file", 12);
+    write(sock, "_end_of_file", 256);
+    fclose(fp);
     return 1;
 }
 
@@ -120,8 +122,8 @@ int push(int sock, char * path) {
     char buffer [256];
     bzero(buffer, 256);
     readn(sock, buffer, 256);
-    while (!(strncmp(buffer, "_end_of_file", 256))) {
-        if (strncmp(buffer, "/_end_of_file", 256)) {
+    while (strncmp(buffer, "_end_of_file", 256)) {
+        if (!(strncmp(buffer, "/_end_of_file", 256))) {
             int i;
             for (i = 0; i < strlen(buffer) - 1; i++)
                 buffer[i] = buffer[i + 1];
@@ -129,6 +131,7 @@ int push(int sock, char * path) {
         fwrite((void *) buffer, sizeof(char), 256, fp);
         readn(sock, buffer, 256);
     }
+    fclose(fp);
     return 1;
 }
 
@@ -177,7 +180,7 @@ void* readAndWrite (void* temp) {
     shutdown(sock, 2);
     close(sock);
     return NULL;
-}
+ }
 
 
 int main(int argc, char *argv[]) {
