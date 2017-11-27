@@ -71,12 +71,12 @@ int pull (int sockfd, char * arg) {
     if (!(strncmp(mes, "y", 1))) {
         memset(mes, 0, 256);
         readn(sockfd, mes, 3);
-        size = atoi(&mes);
+        size = atoi(mes);
         memset(mes, 0, 256);
         readn(sockfd, mes, size);
         while (strncmp(mes, "_end_of_file", 256)) {
             if (!(strncmp(mes, "/_end_of_file", 256))) {
-                int i;
+                unsigned int i;
                 for (i = 0; i < strlen(mes) - 1; i++)
                     mes[i] = mes[i + 1];
             }
@@ -84,7 +84,7 @@ int pull (int sockfd, char * arg) {
             fflush(fp);
             memset(mes, 0, 256);
             readn(sockfd, mes, 3);
-            size = atoi(&mes);
+            size = atoi(mes);
             memset(mes, 0, 256);
             readn(sockfd, mes, size);
         }
@@ -204,7 +204,7 @@ int parse(int sockfd, char * message) {
     memset (command, 0, 6);
     memset (arg, 0, 250);
 
-    int i = 0;
+    unsigned int i = 0;
     int j = 0;
     // вытащим команду из строки
     for (; ((message[i] != ' ') && (i < strlen(message))); i++) command[i] = message[i];
@@ -238,11 +238,11 @@ int readn(int sockfd, char *buf, int n){
     return 0;
 }
 
-int main(int argc, char *argv[]) {
+int main(/*int argc, char *argv[]*/) {
 
     WSADATA wsaData;
 
-    unsigned int t;
+    int t;
     t = WSAStartup(MAKEWORD(2,2), &wsaData);
 
     if (t != 0) {
@@ -250,13 +250,12 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    int sockfd, n;
+    int sockfd;
     uint16_t portno;
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-    char buffer[256];
-    char *p = buffer;
+    //char buffer[256];
 
     //if (argc < 3) {
     //    fprintf(stderr, "usage %s hostname port\n", argv[0]);

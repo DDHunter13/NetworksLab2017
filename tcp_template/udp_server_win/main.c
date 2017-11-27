@@ -35,7 +35,7 @@ int main(/*int argc, char *argv[]*/) {
 
     /* Initialize socket structure */
     memset((char *) &serv_addr, 0, sizeof(serv_addr));
-    portno = 5001;
+    portno = 5002;
 
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
