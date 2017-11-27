@@ -51,6 +51,7 @@ int ls (int sockfd, char * arg) {
 }
 
 int pull (int sockfd, char * arg) {
+    int size;
     FILE * fp;
     if((fp = fopen(arg, "wb")) == NULL) {
         printf("Can't create file \n");
@@ -69,15 +70,23 @@ int pull (int sockfd, char * arg) {
     readn(sockfd, mes, 1);
     if (!(strncmp(mes, "y", 1))) {
         memset(mes, 0, 256);
-        readn(sockfd, mes, 256);
+        readn(sockfd, mes, 3);
+        size = atoi(&mes);
+        memset(mes, 0, 256);
+        readn(sockfd, mes, size);
         while (strncmp(mes, "_end_of_file", 256)) {
             if (!(strncmp(mes, "/_end_of_file", 256))) {
                 int i;
                 for (i = 0; i < strlen(mes) - 1; i++)
                     mes[i] = mes[i + 1];
             }
-            fwrite((void *) mes, sizeof(char), 256, fp);
-            readn(sockfd, mes, 256);
+            fwrite((void *) mes, sizeof(char), size, fp);
+            fflush(fp);
+            memset(mes, 0, 256);
+            readn(sockfd, mes, 3);
+            size = atoi(&mes);
+            memset(mes, 0, 256);
+            readn(sockfd, mes, size);
         }
         fclose(fp);
         return 1;
@@ -95,6 +104,7 @@ int push (int sockfd, char * arg) {
     //addrPaste(arg);
     char post[256];
     char mes[256];
+    char temp[3];
     memset(post, 0, 256);
     memset(mes, 0, 256);
     strcat(post, "push ");
@@ -115,8 +125,16 @@ int push (int sockfd, char * arg) {
                     mes[i + 1] = mes[i];
                 mes[0] = '/';
             }
-            send(sockfd, mes, 256, 0);
+            memset(temp, 0, 3);
+            int temp2;
+            temp[2] = ((int)(size % 10) + '0');
+            temp2 = size / 10;
+            temp[1] = ((int)(temp2 % 10) + '0');
+            temp[0] = ((int)(temp2 / 10) + '0');
+            send(sockfd, temp, 3, 0);
+            send(sockfd, mes, size, 0);
         }
+        send(sockfd, "256", 3, 0);
         send(sockfd, "_end_of_file", 256, 0);
         fclose(fp);
         return 1;
