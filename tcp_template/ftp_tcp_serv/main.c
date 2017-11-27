@@ -132,7 +132,7 @@ int push(int sock, char * path) {
     char buffer [256];
     bzero(buffer, 256);
     readn(sock, buffer, 3);
-    size = atoi(&buffer);
+    size = atoi(buffer);
     bzero(buffer, 256);
     readn(sock, buffer, size);
     while (strncmp(buffer, "_end_of_file", 256)) {
@@ -145,7 +145,7 @@ int push(int sock, char * path) {
         fflush(fp);
         bzero(buffer, 256);
         readn(sock, buffer, 3);
-        size = atoi(&buffer);
+        size = atoi(buffer);
         bzero(buffer, 256);
         readn(sock, buffer, size);
     }
