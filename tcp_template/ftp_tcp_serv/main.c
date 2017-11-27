@@ -77,6 +77,7 @@ int ls(int sock, char * path) {
 }
 
 int pull(int sock, char * file) {
+    char temp [3];
     // *передача клиенту указанного файла от сервера*
     // проверка, есть ли этот файл
     FILE * fp;
@@ -101,14 +102,23 @@ int pull(int sock, char * file) {
                 sendbuff[i + 1] = sendbuff[i];
             sendbuff[0] = '/';
         }
-        write(sock, sendbuff, 256);
+        bzero(temp, 3);
+        int temp2;
+        temp[2] = ((int)(size % 10) + '0');
+        temp2 = size / 10;
+        temp[1] = ((int)(temp2 % 10) + '0');
+        temp[0] = ((int)(temp2 / 10) + '0');
+        write(sock, temp, 3);
+        write(sock, sendbuff, size);
     }
+    write(sock, "256", 3);
     write(sock, "_end_of_file", 256);
     fclose(fp);
     return 1;
 }
 
 int push(int sock, char * path) {
+    int size;
     // *прием сервером файла от клиента*
     // попытка открыть файл по адресу
     FILE * fp;
@@ -121,15 +131,23 @@ int push(int sock, char * path) {
     write(sock, "y", 1);
     char buffer [256];
     bzero(buffer, 256);
-    readn(sock, buffer, 256);
+    readn(sock, buffer, 3);
+    size = atoi(&buffer);
+    bzero(buffer, 256);
+    readn(sock, buffer, size);
     while (strncmp(buffer, "_end_of_file", 256)) {
         if (!(strncmp(buffer, "/_end_of_file", 256))) {
             int i;
             for (i = 0; i < strlen(buffer) - 1; i++)
                 buffer[i] = buffer[i + 1];
         }
-        fwrite((void *) buffer, sizeof(char), 256, fp);
-        readn(sock, buffer, 256);
+        fwrite((void *) buffer, sizeof(char), size, fp);
+        fflush(fp);
+        bzero(buffer, 256);
+        readn(sock, buffer, 3);
+        size = atoi(&buffer);
+        bzero(buffer, 256);
+        readn(sock, buffer, size);
     }
     fclose(fp);
     return 1;
