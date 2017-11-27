@@ -183,6 +183,7 @@ int readAndWriteCycle (int sockfd) {
     while (1) {
         int i;
         memset(buffer, 0, 256);
+        printf("%s>", addr);
         fgets(buffer, 255, stdin);
         for (i = 0; i < 256; i ++) {
             if (buffer[i] == '\n') {
