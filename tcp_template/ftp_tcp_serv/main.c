@@ -13,6 +13,9 @@ int pull(int sock, char * file); //взять файл с сервера
 int push(int sock, char * path); //положить файл на сервер
 int readn(int sockfd, char *buf, int n);
 
+int sockets[100];
+int flags[100];
+
 int parse (int sock, char * message) {
     char command [6]; // храним команду
     char arg [250]; // храним аргументы после команды
@@ -168,12 +171,47 @@ int readn(int sockfd, char *buf, int n) {
     return off;
 }
 
+void* servConsole(void* temp) {
+    char buffer[256];
+    while(1) {
+        memset(buffer, 0, 256);
+        fgets(buffer, 256, stdin);
+        if (!(strncmp(buffer, "close", 5))) {
+            if(!(strncmp(buffer, "closeall", 8))) {
+                for (int i = 0; i < 100; i++) {
+                    if (flags[i] == 1) flags[i] = 2;
+                }
+            } else {
+                char temp[3];
+                temp[0] = buffer[5];
+                temp[1] = buffer[6];
+                temp[2] = buffer[7];
+                int number = atoi(temp);
+                if (flags[number] == 1) flags[number] = 2;
+            }
+        }
+    }
+
+}
+
 void* readAndWrite (void* temp) {
     int sock = *((int *) temp);
     char buf[256];
     char *p = buf;
-
+    int flag = 0;
     while(1) {
+
+        for (int i = 0; i < 100; i++) {
+            if (sockets[i] == sock) {
+                if (flags[i] == 2) {
+                    flag = 1;
+                }
+                break;
+            }
+        }
+
+        if (flag == 1) break;
+
         bzero(buf, 256);
         int n = readn(sock, p, 3);
         if (n < 0) {
@@ -206,6 +244,7 @@ int main(int argc, char *argv[]) {
     uint16_t portno;
     unsigned int clilen;
     struct sockaddr_in serv_addr, cli_addr;
+    int number = 0;
 
     // первый вызов socket() для открытия сокета
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -229,6 +268,17 @@ int main(int argc, char *argv[]) {
         exit(1);
     }
 
+    for (int i =0; i < 100; i++) {
+        flags[i] = 0;
+        sockets[i] = 0;
+    }
+
+    pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_create(&tid, &attr, servConsole, NULL);
+    pthread_detach(tid);
+
     // ждем подсоединения клиентов
     while (1) {
         listen(sockfd, 5);
@@ -241,6 +291,9 @@ int main(int argc, char *argv[]) {
             perror("ERROR on accept");
             exit(1);
         }
+        flags[number] = 1;
+        sockets[number] = newsockfd;
+        number++;
         //создаем отдельный поток, инициализируем, переводим в поток общение с клиентом
         pthread_t tid;
         pthread_attr_t attr;
