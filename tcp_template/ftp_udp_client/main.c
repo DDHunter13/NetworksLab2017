@@ -1,8 +1,5 @@
 #include <arpa/inet.h>
-#include <netinet/in.h>
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
@@ -17,6 +14,7 @@ int pull (int sockfd, struct sockaddr * serv_addr, char * arg, int len);
 int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len);
 int readn (int sockfd, struct sockaddr * serv_addr, char*, int n, int len);
 int readAndWriteCycle(int sockfd, struct sockaddr * serv_addr, int len);
+int checkRec (char * mes, int counter);
 
 int addrPaste (char * message) {
     char str[256];
@@ -31,25 +29,33 @@ int ls (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     //addrPaste(arg);
     char post[256];
     char mes[256];
+    int recConter = 0;
+    int sendCounter = 2;
     memset(post, 0, 256);
     memset(mes, 0, 256);
-    strcat(post, "ls ");
+    strcat(post, "02ls ");
     strcat(post, addr);
     strcat(post, arg);
-    char str256[3] = "256";
-    sendto(sockfd, &str256[0], 3, 0, serv_addr, len);
+    char str256[5] = "01256";
+    sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], 256, 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
     int length = sizeof(serv_addr2);
-    recvfrom(sockfd, mes, 1, 0, (struct sockaddr *)&serv_addr2, &length);
+    recvfrom(sockfd, mes, 3, 0, (struct sockaddr *)&serv_addr2, &length);
+    if(checkRec(mes, recConter)) return 0;
+    recConter++;
     if (!(strncmp(mes, "y", 1))) {
         memset(mes, 0, 256);
         recvfrom(sockfd, mes, 256, 0, (struct sockaddr *)&serv_addr2, &length);
+        if(checkRec(mes, recConter)) return 0;
+        recConter++;
         while (strncmp(mes, "_ls_end", 7)) {
             printf("%s", mes);
             printf("\n");
             memset(mes, 0, 256);
             recvfrom(sockfd, mes, 256, 0, (struct sockaddr *)&serv_addr2, &length);
+            if(checkRec(mes, recConter)) return 0;
+            recConter++;
         }
         return 1;
     }
@@ -63,26 +69,34 @@ int pull (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
         printf("Can't create file \n");
         return 0;
     }
+    int recCounter = 0;
+    int sendCounter = 2;
     //addrPaste(arg);
     char post[256];
     char mes[256];
     memset(post, 0, 256);
     memset(mes, 0, 256);
-    strcat(post, "pull ");
+    strcat(post, "02pull ");
     strcat(post, addr);
     strcat(post, arg);
-    char str256[3] = "256";
-    sendto(sockfd, &str256[0], 3, 0, serv_addr, len);
+    char str256[5] = "01256";
+    sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], 256, 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
     int length = sizeof(serv_addr2);
-    recvfrom(sockfd, mes, 1, 0, (struct sockaddr *)&serv_addr2, &length);
+    recvfrom(sockfd, mes, 3, 0, (struct sockaddr *)&serv_addr2, &length);
+    if(checkRec(mes, recCounter)) return 0;
+    recCounter++;
     if (!(strncmp(mes, "y", 1))) {
         memset(mes, 0, 256);
-        recvfrom(sockfd, mes, 3, 0, (struct sockaddr *)&serv_addr2, &length);
+        recvfrom(sockfd, mes, 5, 0, (struct sockaddr *)&serv_addr2, &length);
+        if(checkRec(mes, recCounter)) return 0;
+        recCounter++;
         size = atoi(mes);
         memset(mes, 0, 256);
-        recvfrom(sockfd, mes, size, 0, (struct sockaddr *)&serv_addr2, &length);
+        recvfrom(sockfd, mes, size+2, 0, (struct sockaddr *)&serv_addr2, &length);
+        if(checkRec(mes, recCounter)) return 0;
+        recCounter++;
         while (strncmp(mes, "_end_of_file", 256)) {
             if (!(strncmp(mes, "/_end_of_file", 256))) {
                 int i;
@@ -92,10 +106,15 @@ int pull (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
             fwrite((void *) mes, sizeof(char), size, fp);
             fflush(fp);
             memset(mes, 0, 256);
-            recvfrom(sockfd, mes, 3, 0, (struct sockaddr *)&serv_addr2, &length);
+            recvfrom(sockfd, mes, 5, 0, (struct sockaddr *)&serv_addr2, &length);
+            if(checkRec(mes, recCounter)) return 0;
+            recCounter++;
             size = atoi(mes);
+            if (size > 254) size = 254;
             memset(mes, 0, 256);
-            recvfrom(sockfd, mes, size, 0, (struct sockaddr *)&serv_addr2, &length);
+            recvfrom(sockfd, mes, size+2, 0, (struct sockaddr *)&serv_addr2, &length);
+            if(checkRec(mes, recCounter)) return 0;
+            recCounter++;
         }
         fclose(fp);
         return 1;
@@ -113,18 +132,22 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     //addrPaste(arg);
     char post[256];
     char mes[256];
-    char temp[3];
+    int recCounter = 0;
+    int sendCounter = 3;
+    char temp[5];
     memset(post, 0, 256);
     memset(mes, 0, 256);
-    strcat(post, "push ");
+    strcat(post, "02push ");
     strcat(post, addr);
     strcat(post, arg);
-    char str256[3] = "256";
-    sendto(sockfd, &str256[0], 3, 0, serv_addr, len);
+    char str256[5] = "01256";
+    sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], 256, 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
     int length = sizeof(serv_addr2);
-    recvfrom(sockfd, mes, 1, 0, (struct sockaddr *)&serv_addr2, &length);
+    recvfrom(sockfd, mes, 3, 0, (struct sockaddr *)&serv_addr2, &length);
+    if (checkRec(mes, recCounter)) return 0;
+    recCounter++;
     int size = 0;
     if (!(strncmp(mes, "y", 1))) {
         memset(mes, 0, 256);
@@ -139,16 +162,35 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
             }
             memset(temp, 0, 3);
             int temp2;
-            temp[2] = ((int)(size % 10) + '0');
+            temp[0] = (int)(sendCounter / 10) + '0';
+            temp[1] = sendCounter % 10 + '0';
+            temp[4] = ((int)(size % 10) + '0');
             temp2 = size / 10;
-            temp[1] = ((int)(temp2 % 10) + '0');
-            temp[0] = ((int)(temp2 / 10) + '0');
-            sendto(sockfd, &temp[0], 3, 0, serv_addr, len);
-            sendto(sockfd, &mes[0], size, 0, serv_addr, len);
+            temp[3] = ((int)(temp2 % 10) + '0');
+            temp[2] = ((int)(temp2 / 10) + '0');
+            sendto(sockfd, &temp[0], 5, 0, serv_addr, len);
+            sendCounter++;
+            for (int i = 256; i > 1; i--) {
+                mes[i] = mes[i-2];
+            }
+            mes[0] = (int)(sendCounter / 10) + '0';
+            mes[1] = sendCounter % 10 + '0';
+            sendto(sockfd, &mes[0], size+2, 0, serv_addr, len);
+            sendCounter++;
         }
-        sendto(sockfd, &str256[0], 3, 0, serv_addr, len);
-        char strEnd[256] = "_end_of_file";
+        memset(str256, 0, 5);
+        str256[0] = (int)(sendCounter / 10) + '0';
+        str256[1] = sendCounter % 10 + '0';
+        strcat(str256, "256");
+        sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
+        sendCounter++;
+        char strEnd[256];
+        memset(strEnd, 0, 256);
+        strEnd[0] = (int)(sendCounter / 10) + '0';
+        strEnd[1] = sendCounter % 10 + '0';
+        strcat(strEnd, "_end_of_file");
         sendto(sockfd, &strEnd[0], 256, 0, serv_addr, len);
+        sendCounter++;
         fclose(fp);
         return 1;
     }
@@ -160,17 +202,21 @@ int addrChange(int sockfd, struct sockaddr * serv_addr, char * arg, int len){
     //addrPaste(arg);
     char post[256];
     char mes[256];
+    int recConter = 0;
+    int sendCounter = 2;
     memset(post, 0, 256);
     memset(mes, 0, 256);
-    strcat(post, "cd ");
+    strcat(post, "02cd ");
     strcat(post, addr);
     strcat(post, arg);
-    char str256[3] = "256";
-    sendto(sockfd, &str256[0], 3, 0, serv_addr, len);
+    char str256[5] = "01256";
+    sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], 256, 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
     int length = sizeof(serv_addr2);
-    recvfrom(sockfd, mes, 1, 0, (struct sockaddr *)&serv_addr2, &length);
+    recvfrom(sockfd, mes, 3, 0, (struct sockaddr *)&serv_addr2, &length);
+    if (checkRec(mes, recConter)) return 1;
+    recConter++;
     if (!(strncmp(mes, "y", 1))) {
         //memset(addr, 0, 256);
         if (!(strncmp(arg, "..", 2))) {
@@ -231,9 +277,14 @@ int parse(int sockfd, struct sockaddr * serv_addr, char * message, int len) {
     for (; i < strlen(message); i++) arg[j++] = message[i];
 
     if (!(strncmp(command, "exit", 4))) {
-        char str4[3] = "004";
-        sendto(sockfd, &str4[0], 3, 0, serv_addr, len);
-        sendto(sockfd, &command[0], 4, 0, serv_addr, len);
+        char str4[5] = "01004";
+        for (int i = 253; i > 0; i--) {
+            command[i+2] = command[i];
+        }
+        command[0] = '0';
+        command[1] = '2';
+        sendto(sockfd, &str4[0], 5, 0, serv_addr, len);
+        sendto(sockfd, &command[0], 6, 0, serv_addr, len);
         return 1;
     } else if(!(strncmp(command, "cd", 2))) addrChange (sockfd, serv_addr, arg, len);
     else if(!(strncmp(command, "ls", 2))) ls (sockfd, serv_addr, arg, len);
@@ -255,6 +306,19 @@ int readn(int sockfd, struct sockaddr * serv_addr, char *buf, int n, int len){
         }
     }
     return 0;
+}
+
+int checkRec (char * mes, int counter) {
+    char temp[2];
+    temp[0] = mes[0];
+    temp[1] = mes[1];
+    for (int i = 0; i < 254; i++) {
+        mes[i] = mes[i+2];
+    }
+    int co = atoi(temp);
+    if (co == counter + 1) return 0;
+    printf("Ошибка приема - неверный порядок пакетов\n");
+    return 1;
 }
 
 int main(int argc, char *argv[]) {
