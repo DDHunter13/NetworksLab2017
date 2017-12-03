@@ -9,6 +9,7 @@ int ls(int sock, struct sockaddr * cli_addr, char * path, int clilen);  //про
 int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen); //взять файл с сервера
 int push(int sock, struct sockaddr * cli_addr, char * path, int clilen); //положить файл на сервер
 int readn(int sockfd, struct sockaddr * cli_addr, char *buf, int n, int clilen);
+int checkRec (char * mes, int counter);
 
 int parse (int sock, struct sockaddr * cli_addr, char * message, int clilen) {
     char command [6]; // храним команду
@@ -40,11 +41,11 @@ int parse (int sock, struct sockaddr * cli_addr, char * message, int clilen) {
 int direxist(int sock, struct sockaddr * cli_addr, char *  path, int clilen) {
     DIR* dir;
     if ((dir = opendir(path)) == NULL) {
-        char n[1] = "n";
-        sendto(sock, &n[0], 1, 0, cli_addr, clilen); // папки не существует, клиент не изменит адрес
+        char n[3] = "01n";
+        sendto(sock, &n[0], 3, 0, cli_addr, clilen); // папки не существует, клиент не изменит адрес
     } else {
-        char y[1] = "y";
-        sendto(sock, &y[0], 1, 0, cli_addr, clilen); // клиент получит одобрение на изменение адреса
+        char y[3] = "01y";
+        sendto(sock, &y[0], 3, 0, cli_addr, clilen); // клиент получит одобрение на изменение адреса
     }
     closedir(dir);
     return 1;
@@ -54,14 +55,17 @@ int ls(int sock, struct sockaddr * cli_addr, char * path, int clilen) {
     DIR* dir;
     struct dirent* de;
     char ans [256];
+    int recCounter = 2;
+    int sendCounter = 2;
     memset(ans, 0, 256);
     if ((dir = opendir(path)) == NULL) {
-        char n[1] = "n";
-        sendto(sock, &n[0], 1, 0, cli_addr, clilen); // если папки не существует
+        char n[3] = "01n";
+        sendto(sock, &n[0], 3, 0, cli_addr, clilen); // если папки не существует
     } else {
-        char y[1] = "y";
-        sendto(sock, &y[0], 1, 0, cli_addr, clilen);
+        char y[3] = "01y";
+        sendto(sock, &y[0], 3, 0, cli_addr, clilen);
     }
+    Sleep(1);
     // в цикле перебираем все содержимое, отправляя новое сообщения для каждого файла
     while ((de = readdir(dir)) != NULL) {
         memset(ans, 0, 256);
@@ -72,29 +76,41 @@ int ls(int sock, struct sockaddr * cli_addr, char * path, int clilen) {
                 ans[i + 1] = ans[i];
             ans[0] = '/';
         }
+        for (int i = 256; i > 1; i--) {
+            ans[i] = ans[i-2];
+        }
+        ans[0] = (int)(sendCounter / 10) + '0';
+        ans[1] = sendCounter % 10 + '0';
         sendto(sock, &ans[0], 256, 0, cli_addr, clilen);
+        sendCounter++;
     }
-    char lsEnd[256] = "_ls_end";
+    char lsEnd[256];
+    memset(lsEnd, 0, 256);
+    lsEnd[0] = (int)(sendCounter / 10) + '0';
+    lsEnd[1] = sendCounter % 10 + '0';
+    strcat(lsEnd, "_ls_end");
     sendto(sock, &lsEnd[0], 256, 0, cli_addr, clilen); // по данной строке клиент закончит прием сообщений
     closedir(dir);
     return 1;
 }
 
 int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen) {
-    char temp [3];
+    char temp [5];
+    int recCounter = 2;
+    int sendCounter = 2;
     // *передача клиенту указанного файла от сервера*
     // проверка, есть ли этот файл
     FILE * fp;
     if((fp = fopen(file, "rb")) == NULL) {
         // если нет, то сервер отправляет отказ. клиент не начинает прием
-        char n[1] = "n";
-        sendto(sock, &n[0], 1, 0, cli_addr, clilen); //  отказ
+        char n[3] = "01n";
+        sendto(sock, &n[0], 3, 0, cli_addr, clilen); //  отказ
         return 0;
     }
     // если да, то сервер отправляет подтверждение и начинает передачу, которую закончит спец строкой
     // подтверждение
-    char y[1] = "y";
-    sendto(sock, &y[0], 1, 0, cli_addr, clilen);
+    char y[3] = "01y";
+    sendto(sock, &y[0], 3, 0, cli_addr, clilen);
     // оправляем файл
     int size = 0;
     char sendbuff[256];
@@ -110,41 +126,66 @@ int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen) {
         }
         memset(temp, 0, 3);
         int temp2;
-        temp[2] = ((int)(size % 10) + '0');
+        temp[0] = (int)(sendCounter / 10) + '0';
+        temp[1] = sendCounter % 10 + '0';
+        temp[4] = ((int)(size % 10) + '0');
         temp2 = size / 10;
-        temp[1] = ((int)(temp2 % 10) + '0');
-        temp[0] = ((int)(temp2 / 10) + '0');
-        sendto(sock, &temp[0], 3, 0, cli_addr, clilen);
-        sendto(sock, &sendbuff[0], size, 0, cli_addr, clilen);
+        temp[3] = ((int)(temp2 % 10) + '0');
+        temp[2] = ((int)(temp2 / 10) + '0');
+        sendto(sock, &temp[0], 5, 0, cli_addr, clilen);
+        sendCounter++;
+        for (int i = 256; i > 1; i--) {
+            sendbuff[i] = sendbuff[i-2];
+        }
+        sendbuff[0] = (int)(sendCounter / 10) + '0';
+        sendbuff[1] = sendCounter % 10 + '0';
+        sendto(sock, &sendbuff[0], size+2, 0, cli_addr, clilen);
+        sendCounter++;
     }
-    char str256[3] = "256";
-    sendto(sock, &str256[0], 3, 0, cli_addr, clilen);
-    char endFile[256] = "_end_of_file";
+    char str256[5];
+    memset(str256, 0, 5);
+    str256[0] = (int)(sendCounter / 10) + '0';
+    str256[1] = sendCounter % 10 + '0';
+    strcat(str256, "256");
+    sendto(sock, &str256[0], 5, 0, cli_addr, clilen);
+    sendCounter++;
+    char endFile[256];
+    memset(endFile, 0, 256);
+    endFile[0] = (int)(sendCounter / 10) + '0';
+    endFile[1] = sendCounter % 10 + '0';
+    strcat(endFile, "_end_of_file");
     sendto(sock, &endFile[0], 256, 0, cli_addr, clilen);
+    sendCounter++;
     fclose(fp);
     return 1;
 }
 
 int push(int sock, struct sockaddr * cli_addr, char * path, int clilen) {
     int size;
+    int recCounter = 2;
+    int sendCounter = 2;
     // *прием сервером файла от клиента*
     // попытка открыть файл по адресу
     FILE * fp;
     if((fp = fopen(path, "wb")) == NULL) {
         // если нет, то отослать отказ. клиент не начинает передачу
-        char n[1] = "n";
-        sendto(sock, &n[0], 1, 0, cli_addr, clilen);
+        char n[3] = "01n";
+        sendto(sock, &n[0], 3, 0, cli_addr, clilen);
         return 0;
     }
     // если да, то отослать подтверждение, и начать прием файла. конец приема по спец строке
-    char y[1] = "y";
-    sendto(sock, &y[0], 1, 0, cli_addr, clilen);
+    char y[3] = "01y";
+    sendto(sock, &y[0], 3, 0, cli_addr, clilen);
     char buffer [256];
     memset(buffer, 0, 256);
-    recvfrom(sock, buffer, 3, 0, cli_addr, &clilen);
+    recvfrom(sock, buffer, 5, 0, cli_addr, &clilen);
+    if (checkRec(buffer, recCounter)) return 0;
+    recCounter++;
     size = atoi(buffer);
     memset(buffer, 0, 256);
-    recvfrom(sock, buffer, size, 0, cli_addr, &clilen);
+    recvfrom(sock, buffer, size+2, 0, cli_addr, &clilen);
+    if (checkRec(buffer, recCounter)) return 0;
+    recCounter++;
     while (strncmp(buffer, "_end_of_file", 256)) {
         if (!(strncmp(buffer, "/_end_of_file", 256))) {
             int i;
@@ -154,10 +195,15 @@ int push(int sock, struct sockaddr * cli_addr, char * path, int clilen) {
         fwrite((void *) buffer, sizeof(char), size, fp);
         fflush(fp);
         memset(buffer, 0, 256);
-        recvfrom(sock, buffer, 3, 0, cli_addr, &clilen);
+        recvfrom(sock, buffer, 5, 0, cli_addr, &clilen);
+        if (checkRec(buffer, recCounter)) return 0;
+        recCounter++;
         size = atoi(buffer);
+        if (size > 254) size = 254;
         memset(buffer, 0, 256);
-        recvfrom(sock, buffer, size, 0, cli_addr, &clilen);
+        recvfrom(sock, buffer, size+2, 0, cli_addr, &clilen);
+        if (checkRec(buffer, recCounter)) return 0;
+        recCounter++;
     }
     fclose(fp);
     return 1;
@@ -185,14 +231,16 @@ int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
     while(1) {
         memset(buf, 0, 256);
         //int n = readn(sock, cli_addr, p, 3, clilen);
-        int n = recvfrom(sock, buf, 3, 0, cli_addr, &clilen);
+        int n = recvfrom(sock, buf, 5, 0, cli_addr, &clilen);
+        if (checkRec(buf, 0)) return 3;
         if (n < 0) {
             perror("ERROR on reading");
             exit(1);
         }
         int length = atoi(p);
         memset(buf, 0, 256);
-        n = recvfrom(sock, buf, length, 0, cli_addr, &clilen);
+        n = recvfrom(sock, buf, length+2, 0, cli_addr, &clilen);
+        if (checkRec(buf, 1)) return 3;
         if (n < 0) {
             perror("ERROR on reading");
             exit(1);
@@ -208,6 +256,19 @@ int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
     }
     shutdown(sock, 2);
     closesocket(sock);
+    return 1;
+}
+
+int checkRec (char * mes, int counter) {
+    char temp[2];
+    temp[0] = mes[0];
+    temp[1] = mes[1];
+    for (int i = 0; i < 254; i++) {
+        mes[i] = mes[i+2];
+    }
+    int co = atoi(temp);
+    if (co == counter + 1) return 0;
+    printf("Ошибка приема - неверный порядок пакетов\n");
     return 1;
 }
 
@@ -255,7 +316,10 @@ int main(int argc, char *argv[]) {
     //Sleep (5000);
 
     clilen = sizeof(cli_addr);
-    readAndWrite(sockfd, (struct sockaddr *)&cli_addr, clilen);
+    int check = readAndWrite(sockfd, (struct sockaddr *)&cli_addr, clilen);
+    while (check == 3) {
+        check = readAndWrite(sockfd, (struct sockaddr *)&cli_addr, clilen);
+    }
 
     WSACleanup();
     return 0;
