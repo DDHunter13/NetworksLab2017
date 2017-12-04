@@ -118,8 +118,8 @@ int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen) {
     memset(sendbuff, 0, 256);
     fseek(fp, 0, SEEK_SET);
     while (!feof(fp)) {
-        size = (int)fread((void *) sendbuff, sizeof(char), 256, fp);
-        if (!(strncmp(sendbuff, "_end_of_file", 256))) {
+        size = (int)fread((void *) sendbuff, sizeof(char), 254, fp);
+        if (!(strncmp(sendbuff, "_end_of_file", 254))) {
             int i;
             for (i = strlen(sendbuff)-1; i >= 0; i--)
                 sendbuff[i + 1] = sendbuff[i];
@@ -252,7 +252,7 @@ int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
             sendto(sock, &unk[0], 256, 0, cli_addr, clilen);
         }
         if (n == 2) {
-            break;
+            //break;
         }
     }
     shutdown(sock, 2);
