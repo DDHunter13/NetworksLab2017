@@ -10,6 +10,7 @@ int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen); //вз�
 int push(int sock, struct sockaddr * cli_addr, char * path, int clilen); //положить файл на сервер
 int readn(int sockfd, struct sockaddr * cli_addr, char *buf, int n, int clilen);
 int checkRec (char * mes, int counter);
+int flag = 0;
 
 int parse (int sock, struct sockaddr * cli_addr, char * message, int clilen) {
     char command [6]; // храним команду
@@ -272,6 +273,23 @@ int checkRec (char * mes, int counter) {
     return 1;
 }
 
+DWORD WINAPI closeServ(void* socket) {
+    int sock = *((int *) socket);
+
+    char buf[256];
+    while (1) {
+        memset(buf, 0, 256);
+        fgets(buf, 256, stdin);
+
+        if (!(strncmp(buf, "close", 5))) {
+            shutdown(sock, 2);
+            closesocket(sock);
+            flag = 1;
+            ExitThread(0);
+        }
+    }
+}
+
 int main(int argc, char *argv[]) {
 
     WSADATA wsaData;
@@ -315,10 +333,12 @@ int main(int argc, char *argv[]) {
     }
     //Sleep (5000);
 
+    CreateThread(NULL, 0, &closeServ, &sockfd, 0, NULL);
     clilen = sizeof(cli_addr);
     int check = readAndWrite(sockfd, (struct sockaddr *)&cli_addr, clilen);
     while (check == 3) {
         check = readAndWrite(sockfd, (struct sockaddr *)&cli_addr, clilen);
+        if (flag == 1) break;
     }
 
     WSACleanup();
