@@ -172,6 +172,7 @@ int readn(int sockfd, char *buf, int n) {
 }
 
 void* servConsole(void* temp) {
+    int sock = *((int *) temp);
     char buffer[256];
     while(1) {
         memset(buffer, 0, 256);
@@ -190,8 +191,15 @@ void* servConsole(void* temp) {
                 if (flags[number] == 1) flags[number] = 2;
             }
         }
+        if(!(strncmp(buffer, "exit", 4))){
+            for (int i = 0; i < 100; i++) {
+                if (flags[i] == 1) flags[i] = 2;
+            }
+            shutdown(sock, 2);
+            close(sock);
+            return NULL;
+        }
     }
-
 }
 
 void* readAndWrite (void* temp) {
@@ -276,7 +284,7 @@ int main(int argc, char *argv[]) {
     pthread_t tid;
     pthread_attr_t attr;
     pthread_attr_init(&attr);
-    pthread_create(&tid, &attr, servConsole, NULL);
+    pthread_create(&tid, &attr, servConsole, &sockfd);
     pthread_detach(tid);
 
     // ждем подсоединения клиентов
