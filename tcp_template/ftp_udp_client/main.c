@@ -153,8 +153,8 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
         memset(mes, 0, 256);
         fseek(fp, 0, SEEK_SET);
         while (!feof(fp)) {
-            size = (int)fread((void *) mes, sizeof(char), 256, fp);
-            if (!(strncmp(mes, "_end_of_file", 256))) {
+            size = (int)fread((void *) mes, sizeof(char), 254, fp);
+            if (!(strncmp(mes, "_end_of_file", 254))) {
                 int i;
                 for (i = strlen(mes)-1; i >= 0; i--)
                     mes[i + 1] = mes[i];
@@ -248,8 +248,8 @@ int readAndWriteCycle (int sockfd, struct sockaddr * serv_addr, int len) {
         int i;
         memset(buffer, 0, 256);
         printf("%s>", addr);
-        fgets(buffer, 255, stdin);
-        for (i = 0; i < 256; i ++) {
+        fgets(buffer, 254, stdin);
+        for (i = 0; i < 254; i ++) {
             if (buffer[i] == '\n') {
                 buffer[i] = '\0';
                 break;
@@ -264,9 +264,9 @@ int readAndWriteCycle (int sockfd, struct sockaddr * serv_addr, int len) {
 
 int parse(int sockfd, struct sockaddr * serv_addr, char * message, int len) {
     char command [6]; // храним команду
-    char arg [250]; // храним аргументы после команды
+    char arg [248]; // храним аргументы после команды
     memset (command, 0, 6);
-    memset (arg, 0, 250);
+    memset (arg, 0, 248);
 
     int i = 0;
     int j = 0;
@@ -278,8 +278,8 @@ int parse(int sockfd, struct sockaddr * serv_addr, char * message, int len) {
 
     if (!(strncmp(command, "exit", 4))) {
         char str4[5] = "01004";
-        for (int i = 253; i > 0; i--) {
-            command[i+2] = command[i];
+        for (int i = 6; i > 1; i--) {
+            command[i] = command[i-2];
         }
         command[0] = '0';
         command[1] = '2';
