@@ -98,6 +98,7 @@ int pull (int sockfd, char * arg) {
             memset(post, 0, 256);
             readn(sockfd, post, size);
         }
+        fflush(fp);
         fclose(fp);
         return 1;
     }

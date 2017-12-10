@@ -8,9 +8,52 @@ int direxist(int sock, struct sockaddr * cli_addr, char *  path, int clilen); //
 int ls(int sock, struct sockaddr * cli_addr, char * path, int clilen);  //просмотр содержимого
 int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen); //взять файл с сервера
 int push(int sock, struct sockaddr * cli_addr, char * path, int clilen); //положить файл на сервер
-int readn(int sockfd, struct sockaddr * cli_addr, char *buf, int n, int clilen);
 int checkRec (char * mes, int counter);
 int flag = 0;
+
+void deleteShield (char * str) {
+    for (unsigned int i = 0; i < strlen(str - 1); i++)
+        str[i] = str[i + 1];
+}
+
+void pastShield (char * sendbuff) {
+    for (int i = strlen(sendbuff)-1; i >= 0; i--)
+        sendbuff[i + 1] = sendbuff[i];
+    sendbuff[0] = '/';
+}
+
+void pastPacketNumber(char * post, int number) {
+    for (int i = 256; i > 1; i--) {
+        post[i] = post[i-2];
+    }
+    post[0] = (int)(number / 10) + '0';
+    post[1] = number % 10 + '0';
+}
+
+char * makeStrFromInt (int len) {
+    char buf[3];
+    char * p = buf;
+    memset(p, 0, 3);
+    int temp;
+    p[2] = ((int)(len % 10) + '0');
+    temp = len / 10;
+    p[1] = ((int)(temp % 10) + '0');
+    p[0] = ((int)(temp / 10) + '0');
+    return p;
+}
+
+int checkRec (char * mes, int counter) {
+    char temp[2];
+    temp[0] = mes[0];
+    temp[1] = mes[1];
+    for (int i = 0; i < 254; i++) {
+        mes[i] = mes[i+2];
+    }
+    int co = atoi(temp);
+    if (co == counter + 1) return 0;
+    printf("Ошибка приема - неверный порядок пакетов\n");
+    return 1;
+}
 
 int parse (int sock, struct sockaddr * cli_addr, char * message, int clilen) {
     char command [6]; // храним команду
@@ -210,21 +253,6 @@ int push(int sock, struct sockaddr * cli_addr, char * path, int clilen) {
     return 1;
 }
 
-
-int readn(int sockfd, struct sockaddr * cli_addr, char *buf, int n, int clilen) {
-    int k;
-    int off = 0;
-    for(int i = 0; i < n; ++i) {
-        k = recvfrom(sockfd, buf + off, 1, 0, cli_addr, &clilen);
-        off += 1;
-        if (k < 0) {
-            printf("Error reading from socket \n");
-            exit(1);
-        }
-    }
-    return off;
-}
-
 int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
     //int sock = *((int *) temp);
     char buf[256];
@@ -257,19 +285,6 @@ int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
     }
     shutdown(sock, 2);
     closesocket(sock);
-    return 1;
-}
-
-int checkRec (char * mes, int counter) {
-    char temp[2];
-    temp[0] = mes[0];
-    temp[1] = mes[1];
-    for (int i = 0; i < 254; i++) {
-        mes[i] = mes[i+2];
-    }
-    int co = atoi(temp);
-    if (co == counter + 1) return 0;
-    printf("Ошибка приема - неверный порядок пакетов\n");
     return 1;
 }
 
