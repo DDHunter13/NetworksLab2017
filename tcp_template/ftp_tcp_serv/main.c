@@ -16,6 +16,28 @@ int readn(int sockfd, char *buf, int n);
 int sockets[100];
 int flags[100];
 
+char * makeStrFromInt (int len) {
+    char buf[3];
+    char * p = buf;
+    int temp;
+    p[2] = ((int)(len % 10) + '0');
+    temp = len / 10;
+    p[1] = ((int)(temp % 10) + '0');
+    p[0] = ((int)(temp / 10) + '0');
+    return p;
+}
+
+void deleteShield (char * str) {
+    for (int i = 0; i < strlen(str - 1); i++)
+        str[i] = str[i + 1];
+}
+
+void pastShield (char * sendbuff) {
+    for (int i = strlen(sendbuff)-1; i >= 0; i--)
+        sendbuff[i + 1] = sendbuff[i];
+    sendbuff[0] = '/';
+}
+
 int parse (int sock, char * message) {
     char command [6]; // храним команду
     char arg [250]; // храним аргументы после команды
@@ -31,24 +53,25 @@ int parse (int sock, char * message) {
     for (; i < strlen(message); i++) arg[j++] = message[i];
 
     if (!(strncmp(command, "cd", 2))) direxist(sock, arg);
-    else
-        if (!(strncmp(command, "ls", 2))) ls(sock, arg);
-        else
-            if (!(strncmp(command, "pull", 4))) pull(sock, arg);
-            else
-                if (!(strncmp(command, "push", 4))) push (sock,arg);
-                else
-                    if (!(strncmp(command, "exit", 4))) return 2;
-                    else return 0;
+
+    if (!(strncmp(command, "ls", 2))) ls(sock, arg);
+
+    if (!(strncmp(command, "pull", 4))) pull(sock, arg);
+
+    if (!(strncmp(command, "push", 4))) push (sock,arg);
+
+    if (!(strncmp(command, "exit", 4))) return 2;
     return 1;
 }
 
 int direxist(int sock, char *  path) {
     DIR* dir;
+    char ans [1];
     if ((dir = opendir(path)) == NULL) {
-        write (sock, "n", 1); // папки не существует, клиент не изменит адрес
+        ans[0] = 'n'; // папки не существует, клиент не изменит адрес
     } else
-        write (sock, "y", 1); // клиент получит одобрение на изменение адреса
+        ans[0] = 'y';// клиент получит одобрение на изменение адреса
+    write(sock, ans, 1);
     closedir(dir);
     return 1;
 }
@@ -59,28 +82,23 @@ int ls(int sock, char * path) {
     char ans [256];
     bzero (ans, 256);
     if ((dir = opendir(path)) == NULL) {
-        write (sock, "n", 1); // если папки не существует
-    } else
-        write (sock, "y", 1);
+        ans[0] = 'n'; // если папки не существует
+    } else ans[0] = 'y';
+
+    write (sock, ans, 1);
         // в цикле перебираем все содержимое, отправляя новое сообщения для каждого файла
-        while ((de = readdir(dir)) != NULL) {
-            bzero (ans, 256);
-            strcat(ans, de->d_name);
-            if (!(strncmp(ans, "_ls_end", 256))) {
-                int i;
-                for (i = strlen(ans)-1; i >= 0; i--)
-                    ans[i + 1] = ans[i];
-                ans[0] = '/';
-            }
-            write(sock, ans, 256);
-        }
+    while ((de = readdir(dir)) != NULL) {
+        bzero (ans, 256);
+        strcat(ans, de->d_name);
+        if (!(strncmp(ans, "_ls_end", 256))) pastShield(ans);
+        write(sock, ans, 256);
+    }
     write (sock, "_ls_end", 256); // по данной строке клиент закончит прием сообщений
     closedir(dir);
     return 1;
 }
 
 int pull(int sock, char * file) {
-    char temp [3];
     // *передача клиенту указанного файла от сервера*
     // проверка, есть ли этот файл
     FILE * fp;
@@ -99,23 +117,12 @@ int pull(int sock, char * file) {
     fseek(fp, 0, SEEK_SET);
     while (!feof(fp)) {
         size = (int)fread((void *) sendbuff, sizeof(char), 256, fp);
-        if (!(strncmp(sendbuff, "_end_of_file", 256))) {
-            int i;
-            for (i = strlen(sendbuff)-1; i >= 0; i--)
-                sendbuff[i + 1] = sendbuff[i];
-            sendbuff[0] = '/';
-        }
-        bzero(temp, 3);
-        int temp2;
-        temp[2] = ((int)(size % 10) + '0');
-        temp2 = size / 10;
-        temp[1] = ((int)(temp2 % 10) + '0');
-        temp[0] = ((int)(temp2 / 10) + '0');
-        write(sock, temp, 3);
+        if (!(strncmp(sendbuff, "_end_of_file", 256))) pastShield(sendbuff);
+        write(sock, makeStrFromInt(size), 3);
         write(sock, sendbuff, size);
     }
-    write(sock, "256", 3);
-    write(sock, "_end_of_file", 256);
+    write(sock, makeStrFromInt(strlen("_end_of_file")), 3);
+    write(sock, "_end_of_file", strlen("_end_of_file"));
     fclose(fp);
     return 1;
 }
@@ -139,11 +146,7 @@ int push(int sock, char * path) {
     bzero(buffer, 256);
     readn(sock, buffer, size);
     while (strncmp(buffer, "_end_of_file", 256)) {
-        if (!(strncmp(buffer, "/_end_of_file", 256))) {
-            int i;
-            for (i = 0; i < strlen(buffer) - 1; i++)
-                buffer[i] = buffer[i + 1];
-        }
+        if (!(strncmp(buffer, "/_end_of_file", 256))) deleteShield(buffer);
         fwrite((void *) buffer, sizeof(char), size, fp);
         fflush(fp);
         bzero(buffer, 256);
@@ -233,13 +236,7 @@ void* readAndWrite (void* temp) {
             perror("ERROR on reading");
             exit(1);
         }
-        n = parse(sock, buf);
-        if (n == 0) {
-            write(sock, "Uknown command", 14);
-        }
-        if (n == 2) {
-            break;
-        }
+        parse(sock, buf);
     }
     shutdown(sock, 2);
     close(sock);
