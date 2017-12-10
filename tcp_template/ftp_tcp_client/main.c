@@ -1,49 +1,69 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <winsock2.h>
 #include <stdint.h>
 #include <string.h>
 
-static char addr [256] = "/home/user/";
+#define UNKNOWN_COMMAND 2
+#define BREAK 1
+
+static char addr [256] = "/";
 int parse (int sockfd, char * message);
-int addrPaste (char * message);
-int addrChange (int sockfd, char * arg);
+int dirChange (int sockfd, char * arg);
 int ls (int sockfd, char * arg);
 int pull (int sockfd, char * arg);
 int push (int sockfd, char * arg);
 int readn (int, char*, int);
 int readAndWriteCycle(int sockfd);
+int makePost(char * post, char * com, char * arg);
 
-int addrPaste (char * message) {
-    char str[256];
-    memset(str, 0 ,256);
-    strcat(str, addr);
-    strcat(str, message);
-    message = str;
+int makePost(char * post, char * com, char * arg) {
+    memset(post, 0, 256);
+    strncat(post, com, strlen(com));
+    strncat(post, addr, strlen(addr));
+    strncat(post, arg, 256 - strlen(com) - strlen(arg));
     return 1;
 }
 
+void deleteShield (char * str) {
+    for (unsigned int i = 0; i < strlen(str - 1); i++)
+        str[i] = str[i + 1];
+}
+
+void pastShield (char * sendbuff) {
+    for (int i = strlen(sendbuff)-1; i >= 0; i--)
+        sendbuff[i + 1] = sendbuff[i];
+    sendbuff[0] = '/';
+}
+
+char * makeStrFromInt (int len) {
+    char buf[3];
+    char * p = buf;
+    memset(p, 0, 3);
+    int temp;
+    p[2] = ((int)(len % 10) + '0');
+    temp = len / 10;
+    p[1] = ((int)(temp % 10) + '0');
+    p[0] = ((int)(temp / 10) + '0');
+    return p;
+}
+
 int ls (int sockfd, char * arg) {
-    //addrPaste(arg);
     char post[256];
-    char mes[256];
-    memset(post, 0, 256);
-    memset(mes, 0, 256);
-    strcat(post, "ls ");
-    strcat(post, addr);
-    strcat(post, arg);
-    send(sockfd, "256", 3, 0);
-    send(sockfd, post, 256, 0);
-    readn(sockfd, mes, 1);
-    if (!(strncmp(mes, "y", 1))) {
-        memset(mes, 0, 256);
-        readn(sockfd, mes, 256);
-        while (strncmp(mes, "_ls_end", 7)) {
-            printf(mes);
+    makePost(post, "ls ", arg);
+    send(sockfd, makeStrFromInt(strlen(post)), 3, 0);
+    send(sockfd, post, strlen(post), 0);
+    memset(post, 0 ,256);
+    readn(sockfd, post, 1);
+    if (!(strncmp(post, "y", 1))) {
+        memset(post, 0, 256);
+        readn(sockfd, post, 256);
+        while (strncmp(post, "_ls_end", 7)) {
+            if (!(strncmp(post, "/_ls_end", 8))) deleteShield(post);
+            printf(post);
             printf("\n");
-            memset(mes, 0, 256);
-            readn(sockfd, mes, 256);
+            memset(post, 0, 256);
+            readn(sockfd, post, 256);
         }
         return 1;
     }
@@ -57,36 +77,26 @@ int pull (int sockfd, char * arg) {
         printf("Can't create file \n");
         return 0;
     }
-    //addrPaste(arg);
     char post[256];
-    char mes[256];
-    memset(post, 0, 256);
-    memset(mes, 0, 256);
-    strcat(post, "pull ");
-    strcat(post, addr);
-    strcat(post, arg);
-    send(sockfd, "256", 3, 0);
-    send(sockfd, post, 256, 0);
-    readn(sockfd, mes, 1);
-    if (!(strncmp(mes, "y", 1))) {
-        memset(mes, 0, 256);
-        readn(sockfd, mes, 3);
-        size = atoi(mes);
-        memset(mes, 0, 256);
-        readn(sockfd, mes, size);
-        while (strncmp(mes, "_end_of_file", 256)) {
-            if (!(strncmp(mes, "/_end_of_file", 256))) {
-                unsigned int i;
-                for (i = 0; i < strlen(mes) - 1; i++)
-                    mes[i] = mes[i + 1];
-            }
-            fwrite((void *) mes, sizeof(char), size, fp);
-            fflush(fp);
-            memset(mes, 0, 256);
-            readn(sockfd, mes, 3);
-            size = atoi(mes);
-            memset(mes, 0, 256);
-            readn(sockfd, mes, size);
+    makePost(post, "pull ", arg);
+    send(sockfd, makeStrFromInt(strlen(post)), 3, 0);
+    send(sockfd, post, strlen(post), 0);
+    memset(post, 0 , 256);
+    readn(sockfd, post, 1);
+    if (!(strncmp(post, "y", 1))) {
+        memset(post, 0, 256);
+        readn(sockfd, post, 3);
+        size = atoi(post);
+        memset(post, 0, 256);
+        readn(sockfd, post, size);
+        while (strncmp(post, "_end_of_file", 256)) {
+            if (!(strncmp(post, "/_end_of_file", 256))) deleteShield(post);
+            fwrite((void *) post, sizeof(char), size, fp);
+            memset(post, 0, 256);
+            readn(sockfd, post, 3);
+            size = atoi(post);
+            memset(post, 0, 256);
+            readn(sockfd, post, size);
         }
         fclose(fp);
         return 1;
@@ -101,41 +111,24 @@ int push (int sockfd, char * arg) {
         printf("Can't read file \n");
         return 0;
     }
-    //addrPaste(arg);
     char post[256];
-    char mes[256];
-    char temp[3];
-    memset(post, 0, 256);
-    memset(mes, 0, 256);
-    strcat(post, "push ");
-    strcat(post, addr);
-    strcat(post, arg);
-    send(sockfd, "256", 3, 0);
+    makePost(post, "push ", arg);
+    send(sockfd, makeStrFromInt(strlen(post)), 3, 0);
     send(sockfd, post, 256, 0);
-    readn(sockfd, mes, 1);
+    memset(post, 0 , 256);
+    readn(sockfd, post, 1);
     int size = 0;
-    if (!(strncmp(mes, "y", 1))) {
-        memset(mes, 0, 256);
+    if (!(strncmp(post, "y", 1))) {
+        memset(post, 0, 256);
         fseek(fp, 0, SEEK_SET);
         while (!feof(fp)) {
-            size = (int)fread((void *) mes, sizeof(char), 256, fp);
-            if (!(strncmp(mes, "_end_of_file", 256))) {
-                int i;
-                for (i = strlen(mes)-1; i >= 0; i--)
-                    mes[i + 1] = mes[i];
-                mes[0] = '/';
-            }
-            memset(temp, 0, 3);
-            int temp2;
-            temp[2] = ((int)(size % 10) + '0');
-            temp2 = size / 10;
-            temp[1] = ((int)(temp2 % 10) + '0');
-            temp[0] = ((int)(temp2 / 10) + '0');
-            send(sockfd, temp, 3, 0);
-            send(sockfd, mes, size, 0);
+            size = (int)fread((void *) post, sizeof(char), 256, fp);
+            if (!(strncmp(post, "_end_of_file", 256))) pastShield(post);
+            send(sockfd, makeStrFromInt(size), 3, 0);
+            send(sockfd, post, size, 0);
         }
-        send(sockfd, "256", 3, 0);
-        send(sockfd, "_end_of_file", 256, 0);
+        send(sockfd, makeStrFromInt(strlen("_end_of_file")), 3, 0);
+        send(sockfd, "_end_of_file", strlen("_end_of_file"), 0);
         fclose(fp);
         return 1;
     }
@@ -143,19 +136,14 @@ int push (int sockfd, char * arg) {
     return 0;
 }
 
-int addrChange(int sockfd, char * arg){
-    //addrPaste(arg);
+int dirChange(int sockfd, char * arg){
     char post[256];
-    char mes[256];
+    makePost(post, "cd ", arg);
+    send(sockfd, makeStrFromInt(strlen(post)), 3, 0);
+    send(sockfd, post, strlen(post), 0);
     memset(post, 0, 256);
-    memset(mes, 0, 256);
-    strcat(post, "cd ");
-    strcat(post, addr);
-    strcat(post, arg);
-    send(sockfd, "256", 3, 0);
-    send(sockfd, post, 256, 0);
-    readn(sockfd, mes, 1);
-    if (!(strncmp(mes, "y", 1))) {
+    readn(sockfd, post, 1);
+    if (!(strncmp(post, "y", 1))) {
         //memset(addr, 0, 256);
         if (!(strncmp(arg, "..", 2))) {
             int i, f = 0;
@@ -192,8 +180,8 @@ int readAndWriteCycle (int sockfd) {
             }
         }
         int n = parse(sockfd, buffer);
-        if (n == 1) break;
-        if (n == 2) printf("Unknown command\n");
+        if (n == BREAK) break;
+        if (n == UNKNOWN_COMMAND) printf("Unknown command\n");
     }
     return 0;
 }
@@ -215,13 +203,13 @@ int parse(int sockfd, char * message) {
     if (!(strncmp(command, "exit", 4))) {
         send(sockfd, "004", 3, 0);
         send(sockfd, command, 4, 0);
-        return 1;
-    } else if(!(strncmp(command, "cd", 2))) addrChange (sockfd, arg);
-        else if(!(strncmp(command, "ls", 2))) ls (sockfd, arg);
-            else if(!(strncmp(command, "pull", 4))) pull (sockfd, arg);
-                else if(!(strncmp(command, "push", 4))) push (sockfd, arg);
-                    else return 2;
-    return 0;
+        return BREAK;
+    }
+    if(!(strncmp(command, "cd", 2))) dirChange (sockfd, arg);
+    if(!(strncmp(command, "ls", 2))) ls (sockfd, arg);
+    if(!(strncmp(command, "pull", 4))) pull (sockfd, arg);
+    if(!(strncmp(command, "push", 4))) push (sockfd, arg);
+    return UNKNOWN_COMMAND;
 }
 
 int readn(int sockfd, char *buf, int n){
@@ -255,14 +243,6 @@ int main(/*int argc, char *argv[]*/) {
     struct sockaddr_in serv_addr;
     struct hostent *server;
 
-    //char buffer[256];
-
-    //if (argc < 3) {
-    //    fprintf(stderr, "usage %s hostname port\n", argv[0]);
-    //    exit(0);
-    //}
-
-    //portno = (uint16_t) atoi(argv[2]);
     portno = (uint16_t) 5001;
             /* Create a socket point */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -293,27 +273,6 @@ int main(/*int argc, char *argv[]*/) {
 
 
     readAndWriteCycle(sockfd);
-    /* Now ask for a message from the user, this message
-       * will be read by server
-    */
-
-    /*printf("Please enter the message: ");
-    memset(buffer, 0, 256);
-    fgets(buffer, 255, stdin);
-
-
-    n = send(sockfd, buffer, 255, 0);
-
-    if (n < 0) {
-        perror("ERROR writing to socket");
-        exit(1);
-    }
-
-
-    memset(buffer, 0, 256);
-    readn(sockfd, p, 255);
-
-    printf("%s\n", buffer);*/
 
     t = shutdown(sockfd, SD_BOTH);
     if (t == SOCKET_ERROR) {
