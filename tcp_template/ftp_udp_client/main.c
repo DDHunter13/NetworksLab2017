@@ -15,29 +15,32 @@ int readAndWriteCycle(int sockfd, struct sockaddr * serv_addr, int len);
 int checkRec (char * mes, int counter);
 
 void makePost (char * message, char * com, char * arg) {
-    bzero(message, strlen(message));
-    strncmp(message, com, strlen(com));
-    strncmp(message, addr, strlen(addr));
-    strncmp(message, arg, 256 - strlen(com) - strlen(addr));
+    strncat(message, com, strlen(com));
+    strncat(message, addr, strlen(addr));
+    strncat(message, arg, 256 - strlen(com) - strlen(addr));
+    return;
 }
 
 void deleteShield (char * str) {
     for (unsigned int i = 0; i < strlen(str - 1); i++)
         str[i] = str[i + 1];
+    return;
 }
 
 void pastShield (char * sendbuff) {
     for (int i = strlen(sendbuff)-1; i >= 0; i--)
         sendbuff[i + 1] = sendbuff[i];
     sendbuff[0] = '/';
+    return;
 }
 
-void pastPacketNumber(char * post, int number) {
-    for (int i = 256; i > 1; i--) {
-        post[i] = post[i-2];
+int pastPacketNumber(char * message, int number, int len) {
+    for (int i = len - 1; i > 1; i--) {
+        message[i] = message[i-2];
     }
-    post[0] = (int)(number / 10) + '0';
-    post[1] = number % 10 + '0';
+    message[0] = (int)(number / 10) + '0';
+    message[1] = number % 10 + '0';
+    return 1;
 }
 
 char * makeStrFromInt (int len) {
@@ -56,7 +59,7 @@ int checkRec (char * mes, int counter) {
     char temp[2];
     temp[0] = mes[0];
     temp[1] = mes[1];
-    for (int i = 0; i < 254; i++) {
+    for (int i = 0; i < strlen(mes); i++) {
         mes[i] = mes[i+2];
     }
     int co = atoi(temp);
@@ -69,14 +72,13 @@ int ls (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     char post[256];
 
     int recConter = 0;
-    int sendCounter = 2;
+    bzero(post, 256);
     makePost(post, "ls ", arg);
-    pastPacketNumber(post, sendCounter);
-
+    pastPacketNumber(post, 2, 256);
     char str256[5];
     bzero(str256, 5);
     strncat(str256, makeStrFromInt(strlen(post)), 3);
-    pastPacketNumber(post, sendCounter - 1);
+    pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], strlen(str256), 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
@@ -112,14 +114,15 @@ int pull (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
         return 0;
     }
     int recCounter = 0;
-    int sendCounter = 2;
+    int sendCounter = 3;
     char post[256];
+    bzero(post, 256);
     makePost(post, "pull ", arg);
-    pastPacketNumber(post, sendCounter);
+    pastPacketNumber(post, 2, 256);
     char str256[5];
     bzero(str256, 5);
     strncat(str256, makeStrFromInt(strlen(post)), 3);
-    pastPacketNumber(str256, sendCounter - 1);
+    pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
@@ -170,11 +173,12 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     int recCounter = 0;
     int sendCounter = 3;
     char temp[5];
+    bzero(post, 256);
     makePost(post, "push ", arg);
-    pastPacketNumber(post, 2);
+    pastPacketNumber(post, 2, 256);
     char str256[5];
     strcat(str256, makeStrFromInt(strlen(post)));
-    pastPacketNumber(str256, 1);
+    pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
@@ -182,7 +186,6 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     bzero(post, 256);
     recvfrom(sockfd, post, 3, 0, (struct sockaddr *)&serv_addr2, &length);
     if (checkRec(post, recCounter)) return 0;
-    recCounter++;
     int size = 0;
     if (!(strncmp(post, "y", 1))) {
         memset(post, 0, 256);
@@ -192,24 +195,23 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
             if (!(strncmp(post, "_end_of_file", 254))) pastShield(post);
             memset(temp, 0, 5);
             strncat(temp, makeStrFromInt(size), 3);
-            pastPacketNumber(temp, sendCounter);
+            pastPacketNumber(temp, sendCounter, 5);
             sendto(sockfd, &temp[0], 5, 0, serv_addr, len);
             sendCounter++;
-            pastPacketNumber(post, sendCounter);
+            pastPacketNumber(post, sendCounter, 256);
             sendto(sockfd, &post[0], size+2, 0, serv_addr, len);
             sendCounter++;
         }
         memset(str256, 0, 5);
         strncat(str256, makeStrFromInt(strlen("_end_of_file")), 3);
-        pastPacketNumber(str256, sendCounter);
+        pastPacketNumber(str256, sendCounter, 5);
         sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
         sendCounter++;
         char strEnd[256];
         memset(strEnd, 0, 256);
         strcat(strEnd, "_end_of_file");
-        pastPacketNumber(strEnd, sendCounter);
+        pastPacketNumber(strEnd, sendCounter, 256);
         sendto(sockfd, &strEnd[0], 256, 0, serv_addr, len);
-        sendCounter++;
         fclose(fp);
         return 1;
     }
@@ -220,14 +222,14 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
 int dirChange(int sockfd, struct sockaddr * serv_addr, char * arg, int len){
 
     char post[256];
+    bzero(post, 256);
     int recConter = 0;
-    int sendCounter = 2;
     makePost(post, "cd ", arg);
-    pastPacketNumber(post, 2);
-    char str256[5] = "01256";
+    pastPacketNumber(post, 2, 256);
+    char str256[5];
     bzero(str256, 5);
-    strncat(post, makeStrFromInt(strlen(post)), 3);
-    pastPacketNumber(str256, 1);
+    strncat(str256, makeStrFromInt(strlen(post)), 3);
+    pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
     struct sockaddr_in serv_addr2;
@@ -235,7 +237,6 @@ int dirChange(int sockfd, struct sockaddr * serv_addr, char * arg, int len){
     bzero(str256, 256);
     recvfrom(sockfd, post, 3, 0, (struct sockaddr *)&serv_addr2, &length);
     if (checkRec(post, recConter)) return 1;
-    recConter++;
     if (!(strncmp(post, "y", 1))) {
         if (!(strncmp(arg, "..", 2))) {
             int i, f = 0;
