@@ -206,10 +206,10 @@ int parse(int sockfd, char * message) {
         send(sockfd, command, 4, 0);
         return BREAK;
     }
-    if(!(strncmp(command, "cd", 2))) dirChange (sockfd, arg);
-    if(!(strncmp(command, "ls", 2))) ls (sockfd, arg);
-    if(!(strncmp(command, "pull", 4))) pull (sockfd, arg);
-    if(!(strncmp(command, "push", 4))) push (sockfd, arg);
+    if(!(strncmp(command, "cd", 2))) {dirChange (sockfd, arg); return 0;}
+    if(!(strncmp(command, "ls", 2))) {ls (sockfd, arg); return 0;}
+    if(!(strncmp(command, "pull", 4))) {pull (sockfd, arg); return 0;}
+    if(!(strncmp(command, "push", 4))) {push (sockfd, arg); return 0;};
     return UNKNOWN_COMMAND;
 }
 

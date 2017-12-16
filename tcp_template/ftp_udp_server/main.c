@@ -52,7 +52,7 @@ int checkRec (char * mes, int counter) {
     int co = atoi(temp);
     if (co == counter + 1) return 0;
     printf("Ошибка приема - неверный порядок пакетов\n");
-    return 1;
+    return 0;
 }
 
 int parse (int sock, struct sockaddr * cli_addr, char * message, int clilen) {
