@@ -4,6 +4,10 @@
 #include <stdint.h>
 #include <dirent.h>
 
+#define UNKNOWN_COMMAND 0
+#define EXIT 2
+#define ALL_IS_RIGHT 1
+
 static char startDir[256] = "D:\\";
 
 int direxist(int sock, struct sockaddr * cli_addr, char *  path, int clilen); //смена директории
@@ -34,21 +38,21 @@ void pastPacketNumber(char * post, int number, int len) {
 
 void makeStrFromInt (int len, char * p) {
     memset(p, 0, 3);
-    int temp;
+    int lenDiv10;
     p[2] = ((int)(len % 10) + '0');
-    temp = len / 10;
-    p[1] = ((int)(temp % 10) + '0');
-    p[0] = ((int)(temp / 10) + '0');
+    lenDiv10 = len / 10;
+    p[1] = ((int)(lenDiv10 % 10) + '0');
+    p[0] = ((int)(lenDiv10 / 10) + '0');
 }
 
 int checkRec (char * mes, int counter) {
-    char temp[2];
-    temp[0] = mes[0];
-    temp[1] = mes[1];
+    char strForNumber[2];
+    strForNumber[0] = mes[0];
+    strForNumber[1] = mes[1];
     for (int i = 0; i < strlen(mes); i++) {
         mes[i] = mes[i+2];
     }
-    int co = atoi(temp);
+    int co = atoi(strForNumber);
     if (co == counter + 1) return 0;
     printf("Ошибка приема - неверный порядок пакетов\n");
     return 0;
@@ -76,9 +80,9 @@ int parse (int sock, struct sockaddr * cli_addr, char * message, int clilen) {
     else
     if (!(strncmp(command, "push", 4))) push (sock, cli_addr, arg, clilen);
     else
-    if (!(strncmp(command, "exit", 4))) return 2;
-    else return 0;
-    return 1;
+    if (!(strncmp(command, "exit", 4))) return EXIT;
+    else return UNKNOWN_COMMAND;
+    return ALL_IS_RIGHT;
 }
 
 int direxist(int sock, struct sockaddr * cli_addr, char *  path, int clilen) {
@@ -152,9 +156,9 @@ int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen) {
         size = (int)fread((void *) sendbuff, sizeof(char), 254, fp);
         if (!(strncmp(sendbuff, "_end_of_file", 254))) pastShield(sendbuff);
         memset(temp, 0, 5);
-        char p[3];
-        makeStrFromInt(size, p);
-        strncat(temp, p, 3);
+        char strLength[3];
+        makeStrFromInt(size, strLength);
+        strncat(temp, strLength, 3);
         pastPacketNumber(temp, sendCounter, 5);
         sendto(sock, &temp[0], 5, 0, cli_addr, clilen);
         sendCounter++;
@@ -245,12 +249,9 @@ int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
             exit(1);
         }
         n = parse(sock, cli_addr, buf, clilen);
-        if (n == 0) {
+        if (n == UNKNOWN_COMMAND) {
             char unk[256] = "Unknown command";
             sendto(sock, &unk[0], 256, 0, cli_addr, clilen);
-        }
-        if (n == 2) {
-            //break;
         }
     }
     shutdown(sock, 2);
