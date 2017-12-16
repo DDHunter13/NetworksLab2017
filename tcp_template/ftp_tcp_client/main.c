@@ -7,7 +7,7 @@
 #define UNKNOWN_COMMAND 2
 #define BREAK 1
 
-static char addr [256] = "/";
+static char addr [256] = "";
 int parse (int sockfd, char * message);
 int dirChange (int sockfd, char * arg);
 int ls (int sockfd, char * arg);
@@ -169,6 +169,7 @@ int dirChange(int sockfd, char * arg){
 
 int readAndWriteCycle (int sockfd) {
     char buffer[256];
+    recv(sockfd, addr, 256, 0);
     while (1) {
         int i;
         memset(buffer, 0, 256);
