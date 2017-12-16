@@ -28,12 +28,12 @@ char * makeStrFromInt (int len) {
 }
 
 void deleteShield (char * str) {
-    for (int i = 0; i < strlen(str - 1); i++)
+    for (int i = 0; i < strnlen(str, 256) - 1; i++)
         str[i] = str[i + 1];
 }
 
 void pastShield (char * sendbuff) {
-    for (int i = strlen(sendbuff)-1; i >= 0; i--)
+    for (int i = strnlen(sendbuff, 256) - 1; i >= 0; i--)
         sendbuff[i + 1] = sendbuff[i];
     sendbuff[0] = '/';
 }
@@ -47,10 +47,10 @@ int parse (int sock, char * message) {
     int i = 0;
     int j = 0;
     // вытащим команду из строки
-    for (; ((message[i] != ' ') && (i < strlen(message))); i++) command[i] = message[i];
+    for (; ((message[i] != ' ') && (i < strnlen(message, 256))); i++) command[i] = message[i];
     i++;
     // сохраним аргументы из оставшейся части строки
-    for (; i < strlen(message); i++) arg[j++] = message[i];
+    for (; i < strnlen(message, 256); i++) arg[j++] = message[i];
 
     if (!(strncmp(command, "cd", 2))) direxist(sock, arg);
 
@@ -89,7 +89,7 @@ int ls(int sock, char * path) {
         // в цикле перебираем все содержимое, отправляя новое сообщения для каждого файла
     while ((de = readdir(dir)) != NULL) {
         bzero (ans, 256);
-        strcat(ans, de->d_name);
+        strncat(ans, de->d_name, 256);
         if (!(strncmp(ans, "_ls_end", 256))) pastShield(ans);
         write(sock, ans, 256);
     }
@@ -148,13 +148,13 @@ int push(int sock, char * path) {
     while (strncmp(buffer, "_end_of_file", 256)) {
         if (!(strncmp(buffer, "/_end_of_file", 256))) deleteShield(buffer);
         fwrite((void *) buffer, sizeof(char), size, fp);
-        fflush(fp);
         bzero(buffer, 256);
         readn(sock, buffer, 3);
         size = atoi(buffer);
         bzero(buffer, 256);
         readn(sock, buffer, size);
     }
+    fflush(fp);
     fclose(fp);
     return 1;
 }
