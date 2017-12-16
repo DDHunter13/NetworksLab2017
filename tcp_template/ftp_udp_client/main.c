@@ -5,6 +5,10 @@
 #include <stdlib.h>
 #include <netdb.h>
 
+#define ALL_IS_RIGHT 0
+#define BREAK 1
+#define UNKNOWN_COMMAND 2
+
 static char addr [256] = "D:\\";
 int parse (int sockfd, struct sockaddr * serv_addr, char * message, int len);
 int dirChange (int sockfd, struct sockaddr * serv_addr, char * arg, int len);
@@ -45,21 +49,21 @@ int pastPacketNumber(char * message, int number, int len) {
 
 void makeStrFromInt (int len, char * p) {
     memset(p, 0, 3);
-    int temp;
+    int lenDiv10;
     p[2] = ((int)(len % 10) + '0');
-    temp = len / 10;
-    p[1] = ((int)(temp % 10) + '0');
-    p[0] = ((int)(temp / 10) + '0');
+    lenDiv10 = len / 10;
+    p[1] = ((int)(lenDiv10 % 10) + '0');
+    p[0] = ((int)(lenDiv10 / 10) + '0');
 }
 
 int checkRec (char * mes, int counter) {
-    char temp[2];
-    temp[0] = mes[0];
-    temp[1] = mes[1];
+    char strForNumber[2];
+    strForNumber[0] = mes[0];
+    strForNumber[1] = mes[1];
     for (int i = 0; i < strlen(mes); i++) {
         mes[i] = mes[i+2];
     }
-    int co = atoi(temp);
+    int co = atoi(strForNumber);
     if (co == counter + 1) return 0;
     printf("Ошибка приема - неверный порядок пакетов\n");
     return 0;
@@ -74,9 +78,9 @@ int ls (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     pastPacketNumber(post, 2, 256);
     char str256[5];
     bzero(str256, 5);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    strncat(str256, p, 3);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    strncat(str256, strLength, 3);
     pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], strlen(str256), 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
@@ -113,16 +117,15 @@ int pull (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
         return 0;
     }
     int recCounter = 0;
-    int sendCounter = 3;
     char post[256];
     bzero(post, 256);
     makePost(post, "pull ", arg);
     pastPacketNumber(post, 2, 256);
     char str256[5];
     bzero(str256, 5);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    strncat(str256, p, 3);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    strncat(str256, strLength, 3);
     pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
@@ -178,9 +181,9 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
     makePost(post, "push ", arg);
     pastPacketNumber(post, 2, 256);
     char str256[5];
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    strncat(str256, p, 3);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    strncat(str256, strLength, 3);
     pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
@@ -197,8 +200,8 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
             size = (int)fread((void *) post, sizeof(char), 254, fp);
             if (!(strncmp(post, "_end_of_file", 254))) pastShield(post);
             memset(temp, 0, 5);
-            makeStrFromInt(size, p);
-            strncat(temp, p, 3);
+            makeStrFromInt(size, strLength);
+            strncat(temp, strLength, 3);
             pastPacketNumber(temp, sendCounter, 5);
             sendto(sockfd, &temp[0], 5, 0, serv_addr, len);
             sendCounter++;
@@ -207,8 +210,8 @@ int push (int sockfd, struct sockaddr * serv_addr, char * arg, int len) {
             sendCounter++;
         }
         memset(str256, 0, 5);
-        makeStrFromInt(strlen("_end_of_file"), p);
-        strncat(str256, p, 3);
+        makeStrFromInt(strlen("_end_of_file"), strLength);
+        strncat(str256, strLength, 3);
         pastPacketNumber(str256, sendCounter, 5);
         sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
         sendCounter++;
@@ -233,9 +236,9 @@ int dirChange(int sockfd, struct sockaddr * serv_addr, char * arg, int len){
     pastPacketNumber(post, 2, 256);
     char str256[5];
     bzero(str256, 5);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    strncat(str256, p, 3);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    strncat(str256, strLength, 3);
     pastPacketNumber(str256, 1, 5);
     sendto(sockfd, &str256[0], 5, 0, serv_addr, len);
     sendto(sockfd, &post[0], strlen(post), 0, serv_addr, len);
@@ -313,13 +316,13 @@ int parse(int sockfd, struct sockaddr * serv_addr, char * message, int len) {
         command[1] = '2';
         sendto(sockfd, &str4[0], 5, 0, serv_addr, len);
         sendto(sockfd, &command[0], 6, 0, serv_addr, len);
-        return 1;
+        return BREAK;
     } else if(!(strncmp(command, "cd", 2))) dirChange (sockfd, serv_addr, arg, len);
     else if(!(strncmp(command, "ls", 2))) ls (sockfd, serv_addr, arg, len);
     else if(!(strncmp(command, "pull", 4))) pull (sockfd, serv_addr, arg, len);
     else if(!(strncmp(command, "push", 4))) push (sockfd, serv_addr, arg, len);
-    else return 2;
-    return 0;
+    else return UNKNOWN_COMMAND;
+    return ALL_IS_RIGHT;
 }
 
 int main(int argc, char *argv[]) {
