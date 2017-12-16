@@ -7,6 +7,9 @@
 #include <string.h>
 #include <pthread.h>
 
+#define EXIT 2
+#define ALL_IS_RIGHT 1
+
 static char startDir [256] = "/home/user/";
 
 int direxist(int sock, char *  path); //смена директории
@@ -20,11 +23,11 @@ int flags[100];
 
 void makeStrFromInt (int len, char * p) {
     memset(p, 0, 3);
-    int temp;
+    int lenDiv10;
     p[2] = ((int)(len % 10) + '0');
-    temp = len / 10;
-    p[1] = ((int)(temp % 10) + '0');
-    p[0] = ((int)(temp / 10) + '0');
+    lenDiv10 = len / 10;
+    p[1] = ((int)(lenDiv10 % 10) + '0');
+    p[0] = ((int)(lenDiv10 / 10) + '0');
 }
 
 void deleteShield (char * str) {
@@ -60,8 +63,8 @@ int parse (int sock, char * message) {
 
     if (!(strncmp(command, "push", 4))) push (sock,arg);
 
-    if (!(strncmp(command, "exit", 4))) return 2;
-    return 1;
+    if (!(strncmp(command, "exit", 4))) return EXIT;
+    return ALL_IS_RIGHT;
 }
 
 int direxist(int sock, char *  path) {
@@ -123,9 +126,9 @@ int pull(int sock, char * file) {
         write(sock, p, 3);
         write(sock, sendbuff, size);
     }
-    char p[3];
-    makeStrFromInt(strlen("_end_of_file"), p);
-    write(sock, p, 3);
+    char strLength[3];
+    makeStrFromInt(strlen("_end_of_file"), strLength);
+    write(sock, strLength, 3);
     write(sock, "_end_of_file", strlen("_end_of_file"));
     fclose(fp);
     return 1;
