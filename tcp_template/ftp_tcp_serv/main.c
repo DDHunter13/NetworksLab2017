@@ -18,15 +18,13 @@ int readn(int sockfd, char *buf, int n);
 int sockets[100];
 int flags[100];
 
-char * makeStrFromInt (int len) {
-    char buf[3];
-    char * p = buf;
+void makeStrFromInt (int len, char * p) {
+    memset(p, 0, 3);
     int temp;
     p[2] = ((int)(len % 10) + '0');
     temp = len / 10;
     p[1] = ((int)(temp % 10) + '0');
     p[0] = ((int)(temp / 10) + '0');
-    return p;
 }
 
 void deleteShield (char * str) {
@@ -120,10 +118,14 @@ int pull(int sock, char * file) {
     while (!feof(fp)) {
         size = (int)fread((void *) sendbuff, sizeof(char), 256, fp);
         if (!(strncmp(sendbuff, "_end_of_file", 256))) pastShield(sendbuff);
-        write(sock, makeStrFromInt(size), 3);
+        char p[3];
+        makeStrFromInt(size, p);
+        write(sock, p, 3);
         write(sock, sendbuff, size);
     }
-    write(sock, makeStrFromInt(strlen("_end_of_file")), 3);
+    char p[3];
+    makeStrFromInt(strlen("_end_of_file"), p);
+    write(sock, p, 3);
     write(sock, "_end_of_file", strlen("_end_of_file"));
     fclose(fp);
     return 1;
