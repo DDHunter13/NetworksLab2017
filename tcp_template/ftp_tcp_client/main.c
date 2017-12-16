@@ -6,6 +6,7 @@
 
 #define UNKNOWN_COMMAND 2
 #define BREAK 1
+#define ALL_IS_RIGHT 0
 
 static char addr [256] = "";
 int parse (int sockfd, char * message);
@@ -38,19 +39,19 @@ void pastShield (char * sendbuff) {
 
 void makeStrFromInt (int len, char * p) {
     memset(p, 0, 3);
-    int temp;
+    int lenDiv10;
     p[2] = ((int)(len % 10) + '0');
-    temp = len / 10;
-    p[1] = ((int)(temp % 10) + '0');
-    p[0] = ((int)(temp / 10) + '0');
+    lenDiv10 = len / 10;
+    p[1] = ((int)(lenDiv10 % 10) + '0');
+    p[0] = ((int)(lenDiv10 / 10) + '0');
 }
 
 int ls (int sockfd, char * arg) {
     char post[256];
     makePost(post, "ls ", arg);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    send(sockfd, p, 3, 0);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    send(sockfd, strLength, 3, 0);
     send(sockfd, post, strlen(post), 0);
     memset(post, 0 ,256);
     readn(sockfd, post, 1);
@@ -78,9 +79,9 @@ int pull (int sockfd, char * arg) {
     }
     char post[256];
     makePost(post, "pull ", arg);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    send(sockfd, p, 3, 0);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    send(sockfd, strLength, 3, 0);
     send(sockfd, post, strlen(post), 0);
     memset(post, 0 , 256);
     readn(sockfd, post, 1);
@@ -115,9 +116,9 @@ int push (int sockfd, char * arg) {
     }
     char post[256];
     makePost(post, "push ", arg);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    send(sockfd, p, 3, 0);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    send(sockfd, strLength, 3, 0);
     send(sockfd, post, 256, 0);
     memset(post, 0 , 256);
     readn(sockfd, post, 1);
@@ -128,12 +129,12 @@ int push (int sockfd, char * arg) {
         while (!feof(fp)) {
             size = (int)fread((void *) post, sizeof(char), 256, fp);
             if (!(strncmp(post, "_end_of_file", 256))) pastShield(post);
-            makeStrFromInt(size, p);
-            send(sockfd, p, 3, 0);
+            makeStrFromInt(size, strLength);
+            send(sockfd, strLength, 3, 0);
             send(sockfd, post, size, 0);
         }
-        makeStrFromInt(strlen("_end_of_file"), p);
-        send(sockfd, p, 3, 0);
+        makeStrFromInt(strlen("_end_of_file"), strLength);
+        send(sockfd, strLength, 3, 0);
         send(sockfd, "_end_of_file", strlen("_end_of_file"), 0);
         fclose(fp);
         return 1;
@@ -145,9 +146,9 @@ int push (int sockfd, char * arg) {
 int dirChange(int sockfd, char * arg){
     char post[256];
     makePost(post, "cd ", arg);
-    char p[3];
-    makeStrFromInt(strlen(post), p);
-    send(sockfd, p, 3, 0);
+    char strLength[3];
+    makeStrFromInt(strlen(post), strLength);
+    send(sockfd, strLength, 3, 0);
     send(sockfd, post, strlen(post), 0);
     memset(post, 0, 256);
     readn(sockfd, post, 1);
@@ -214,10 +215,10 @@ int parse(int sockfd, char * message) {
         send(sockfd, command, 4, 0);
         return BREAK;
     }
-    if(!(strncmp(command, "cd", 2))) {dirChange (sockfd, arg); return 0;}
-    if(!(strncmp(command, "ls", 2))) {ls (sockfd, arg); return 0;}
-    if(!(strncmp(command, "pull", 4))) {pull (sockfd, arg); return 0;}
-    if(!(strncmp(command, "push", 4))) {push (sockfd, arg); return 0;};
+    if(!(strncmp(command, "cd", 2))) {dirChange (sockfd, arg); return ALL_IS_RIGHT;}
+    if(!(strncmp(command, "ls", 2))) {ls (sockfd, arg); return ALL_IS_RIGHT;}
+    if(!(strncmp(command, "pull", 4))) {pull (sockfd, arg); return ALL_IS_RIGHT;}
+    if(!(strncmp(command, "push", 4))) {push (sockfd, arg); return ALL_IS_RIGHT;};
     return UNKNOWN_COMMAND;
 }
 
