@@ -49,6 +49,7 @@ compile_commands.json
 CTestTestfile.cmake
 build
 *.cbp
+*.ini
 
 ### LaTeX ###
 ## Core latex/pdflatex auxiliary files:
