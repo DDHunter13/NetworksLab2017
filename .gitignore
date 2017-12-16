@@ -1,6 +1,8 @@
 
 # Created by https://www.gitignore.io/api/c++,latex,cmake,netbeans,qtcreator,visualstudio
 
+tcp_template/DistTest/
+
 ### C++ ###
 # Prerequisites
 *.d
@@ -46,6 +48,7 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 build
+*.cbp
 
 ### LaTeX ###
 ## Core latex/pdflatex auxiliary files:

@@ -26,12 +26,12 @@ int makePost(char * post, char * com, char * arg) {
 }
 
 void deleteShield (char * str) {
-    for (unsigned int i = 0; i < strlen(str - 1); i++)
+    for (unsigned int i = 0; i < strnlen(str, 256) - 1; i++)
         str[i] = str[i + 1];
 }
 
 void pastShield (char * sendbuff) {
-    for (int i = strlen(sendbuff)-1; i >= 0; i--)
+    for (int i = strnlen(sendbuff, 256) - 1; i >= 0; i--)
         sendbuff[i + 1] = sendbuff[i];
     sendbuff[0] = '/';
 }
