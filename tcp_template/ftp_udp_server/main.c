@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <dirent.h>
 
+static char startDir[256] = "D:\\";
+
 int direxist(int sock, struct sockaddr * cli_addr, char *  path, int clilen); //смена директории
 int ls(int sock, struct sockaddr * cli_addr, char * path, int clilen);  //просмотр содержимого
 int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen); //взять файл с сервера
@@ -220,9 +222,10 @@ int push(int sock, struct sockaddr * cli_addr, char * path, int clilen) {
 }
 
 int readAndWrite (int sock, struct sockaddr * cli_addr, int clilen) {
-    //int sock = *((int *) temp);
     char buf[256];
     char *p = buf;
+    recvfrom(sock, buf, 4, 0, cli_addr, &clilen);
+    sendto(sock, &startDir[0], 256, 0, cli_addr, clilen);
     while(1) {
         memset(buf, 0, 256);
         //int n = readn(sock, cli_addr, p, 3, clilen);
