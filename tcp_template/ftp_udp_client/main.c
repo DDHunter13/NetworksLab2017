@@ -263,6 +263,8 @@ int dirChange(int sockfd, struct sockaddr * serv_addr, char * arg, int len){
 
 int readAndWriteCycle (int sockfd, struct sockaddr * serv_addr, int len) {
     char buffer[256];
+    sendto(sockfd, "addr", 4, 0, serv_addr, len);
+    recvfrom(sockfd, addr, 256, 0, serv_addr, &len);
     while (1) {
         int i;
         memset(buffer, 0, 256);
