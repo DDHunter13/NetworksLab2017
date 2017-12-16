@@ -7,6 +7,8 @@
 #include <string.h>
 #include <pthread.h>
 
+static char startDir [256] = "/home/user/";
+
 int direxist(int sock, char *  path); //смена директории
 int ls(int sock, char * path);  //просмотр содержимого
 int pull(int sock, char * file); //взять файл с сервера
@@ -210,6 +212,7 @@ void* readAndWrite (void* temp) {
     char buf[256];
     char *p = buf;
     int flag = 0;
+    write(sock, startDir, 256); //отправляем стартовую директорию клиенту
     while(1) {
 
         for (int i = 0; i < 100; i++) {
