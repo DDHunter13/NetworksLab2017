@@ -9,7 +9,7 @@
 #define BREAK 1
 #define UNKNOWN_COMMAND 2
 
-static char addr [256] = "D:\\";
+static char addr [256] = "";
 int parse (int sockfd, struct sockaddr * serv_addr, char * message, int len);
 int dirChange (int sockfd, struct sockaddr * serv_addr, char * arg, int len);
 int ls (int sockfd, struct sockaddr * serv_addr, char * arg, int len);
