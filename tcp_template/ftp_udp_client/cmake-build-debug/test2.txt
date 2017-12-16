@@ -1,3 +1,0 @@
-test2
-str2
-end
