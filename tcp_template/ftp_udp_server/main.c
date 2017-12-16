@@ -32,16 +32,13 @@ void pastPacketNumber(char * post, int number, int len) {
     post[1] = number % 10 + '0';
 }
 
-char * makeStrFromInt (int len) {
-    char buf[3];
-    char * p = buf;
+void makeStrFromInt (int len, char * p) {
     memset(p, 0, 3);
     int temp;
     p[2] = ((int)(len % 10) + '0');
     temp = len / 10;
     p[1] = ((int)(temp % 10) + '0');
     p[0] = ((int)(temp / 10) + '0');
-    return p;
 }
 
 int checkRec (char * mes, int counter) {
@@ -155,7 +152,9 @@ int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen) {
         size = (int)fread((void *) sendbuff, sizeof(char), 254, fp);
         if (!(strncmp(sendbuff, "_end_of_file", 254))) pastShield(sendbuff);
         memset(temp, 0, 5);
-        strncat(temp, makeStrFromInt(size), 5);
+        char p[3];
+        makeStrFromInt(size, p);
+        strncat(temp, p, 3);
         pastPacketNumber(temp, sendCounter, 5);
         sendto(sock, &temp[0], 5, 0, cli_addr, clilen);
         sendCounter++;
@@ -165,7 +164,9 @@ int pull(int sock, struct sockaddr * cli_addr, char * file, int clilen) {
     }
     char str256[5];
     memset(str256, 0, 5);
-    strncat(str256, makeStrFromInt(strlen("_end_of_file")), 3);
+    char p[3];
+    makeStrFromInt(strlen("_end_of_file"), p);
+    strncat(str256, p, 3);
     pastPacketNumber(str256, sendCounter, 5);
     sendto(sock, &str256[0], 5, 0, cli_addr, clilen);
     sendCounter++;
